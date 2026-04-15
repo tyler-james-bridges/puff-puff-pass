@@ -46,6 +46,20 @@ async function parseJsonBody(req) {
 async function handle(req, res) {
   const url = new URL(req.url, BASE_URL);
 
+  if (req.method === "GET" && url.pathname === "/api/health") {
+    return json(res, 200, {
+      ok: true,
+      service: "puff-puff-pass-api",
+      now: new Date().toISOString()
+    });
+  }
+
+  if (req.method === "GET" && url.pathname === "/") {
+    const html = await readFile(path.join(projectRoot, "public", "index.html"), "utf8");
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    return res.end(html);
+  }
+
   if (req.method === "GET" && url.pathname === "/api/joint/current") {
     return json(res, 200, {
       ok: true,
@@ -67,6 +81,16 @@ async function handle(req, res) {
       ok: true,
       items: store.getLeaderboard()
     });
+  }
+
+  const handleStatsMatch = url.pathname.match(/^\/api\/handles\/([a-zA-Z0-9_]{1,50})$/);
+  if (req.method === "GET" && handleStatsMatch) {
+    const handleValue = handleStatsMatch[1];
+    const stats = store.getHandleStats(handleValue);
+    if (!stats) {
+      return json(res, 404, { ok: false, error: "Handle not found" });
+    }
+    return json(res, 200, { ok: true, item: stats });
   }
 
   if (req.method === "GET" && url.pathname === "/.well-known/x402") {

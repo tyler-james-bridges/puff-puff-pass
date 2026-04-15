@@ -44,6 +44,8 @@ node --test src/core/*.test.mjs
 - `GET /api/joint/current`
 - `GET /api/feed?limit=50`
 - `GET /api/leaderboard`
+- `GET /api/handles/:handle`
+- `GET /api/health`
 - `POST /api/joint/pass`
 - `GET /.well-known/x402`
 - `GET /openapi.json`

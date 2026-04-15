@@ -1,5 +1,6 @@
 import { buildRankedRows, findRank } from "../core/leaderboard.mjs";
 import { buildCultureLines } from "../core/culture.mjs";
+import { computeBadges } from "../core/badges.mjs";
 
 export class MemoryStore {
   constructor() {
@@ -98,7 +99,34 @@ export class MemoryStore {
   }
 
   getLeaderboard() {
-    return buildRankedRows(this.stats);
+    const ranked = buildRankedRows(this.stats);
+    return ranked.map((row) => ({
+      ...row,
+      badges: computeBadges({
+        totalPasses: row.totalPasses,
+        currentStreak: this.stats.get(row.handle)?.currentStreak ?? 0,
+        longestStreak: row.longestStreak,
+        rank: row.rank
+      })
+    }));
+  }
+
+  getHandleStats(handle) {
+    const base = this.stats.get(handle);
+    if (!base) return null;
+
+    const ranked = buildRankedRows(this.stats);
+    const rank = findRank(ranked, handle);
+
+    return {
+      ...base,
+      rank,
+      badges: computeBadges({
+        totalPasses: base.totalPasses,
+        currentStreak: base.currentStreak,
+        longestStreak: base.longestStreak,
+        rank
+      })
+    };
   }
 }
-
