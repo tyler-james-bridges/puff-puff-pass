@@ -1,176 +1,173 @@
-import http from "node:http";
+import express from "express";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { paymentMiddleware, x402ResourceServer } from "@x402/express";
+import { HTTPFacilitatorClient } from "@x402/core/server";
+import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { MemoryStore } from "./store/memory-store.mjs";
-import { buildPaymentRequiredHeader, verifyPaymentSignature } from "./x402/challenge.mjs";
 
 const PORT = Number(process.env.PORT || 4020);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const PASS_FEE_USD = process.env.PASS_FEE_USD || "0.00402";
+const FACILITATOR_URL = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
+const X402_NETWORK = process.env.X402_NETWORK || "eip155:84532";
+const PAY_TO = process.env.PAY_TO || "0x0000000000000000000000000000000000000000";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..");
 
 const store = new MemoryStore();
+const app = express();
 
-function json(res, code, body, headers = {}) {
-  res.writeHead(code, {
-    "content-type": "application/json",
-    ...headers
-  });
-  res.end(JSON.stringify(body));
-}
+app.use(express.json({ limit: "1mb" }));
 
-async function parseJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", (chunk) => {
-      data += chunk;
-      if (data.length > 1_000_000) {
-        reject(new Error("Payload too large"));
+const facilitatorClient = new HTTPFacilitatorClient({
+  url: FACILITATOR_URL
+});
+
+const x402Server = new x402ResourceServer(facilitatorClient).register(
+  X402_NETWORK,
+  new ExactEvmScheme()
+);
+
+app.use(
+  paymentMiddleware(
+    {
+      "POST /api/joint/pass": {
+        accepts: [
+          {
+            scheme: "exact",
+            price: `$${PASS_FEE_USD}`,
+            network: X402_NETWORK,
+            payTo: PAY_TO
+          }
+        ],
+        description: "Pay to pass the virtual joint and claim the live holder slot.",
+        mimeType: "application/json"
       }
-    });
-    req.on("end", () => {
-      try {
-        resolve(data ? JSON.parse(data) : {});
-      } catch {
-        reject(new Error("Invalid JSON body"));
-      }
-    });
-    req.on("error", reject);
-  });
-}
+    },
+    x402Server
+  )
+);
 
-async function handle(req, res) {
-  const url = new URL(req.url, BASE_URL);
-
-  if (req.method === "GET" && url.pathname === "/api/health") {
-    return json(res, 200, {
+app.get("/api/health", (_req, res) => {
+  return res.status(200).json({
       ok: true,
       service: "puff-puff-pass-api",
-      now: new Date().toISOString()
-    });
-  }
-
-  if (req.method === "GET" && url.pathname === "/") {
-    const html = await readFile(path.join(projectRoot, "public", "index.html"), "utf8");
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    return res.end(html);
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/joint/current") {
-    return json(res, 200, {
-      ok: true,
-      passFeeUsd: PASS_FEE_USD,
-      ...store.getCurrent()
-    });
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/feed") {
-    const limit = Math.min(100, Number(url.searchParams.get("limit") || 50));
-    return json(res, 200, {
-      ok: true,
-      items: store.getFeed(limit)
-    });
-  }
-
-  if (req.method === "GET" && url.pathname === "/api/leaderboard") {
-    return json(res, 200, {
-      ok: true,
-      items: store.getLeaderboard()
-    });
-  }
-
-  const handleStatsMatch = url.pathname.match(/^\/api\/handles\/([a-zA-Z0-9_]{1,50})$/);
-  if (req.method === "GET" && handleStatsMatch) {
-    const handleValue = handleStatsMatch[1];
-    const stats = store.getHandleStats(handleValue);
-    if (!stats) {
-      return json(res, 404, { ok: false, error: "Handle not found" });
-    }
-    return json(res, 200, { ok: true, item: stats });
-  }
-
-  if (req.method === "GET" && url.pathname === "/.well-known/x402") {
-    const raw = await readFile(path.join(projectRoot, "public", ".well-known", "x402"), "utf8");
-    res.writeHead(200, { "content-type": "application/json" });
-    return res.end(raw);
-  }
-
-  if (req.method === "GET" && url.pathname === "/openapi.json") {
-    const raw = await readFile(path.join(projectRoot, "openapi.json"), "utf8");
-    res.writeHead(200, { "content-type": "application/json" });
-    return res.end(raw);
-  }
-
-  if (req.method === "POST" && url.pathname === "/api/joint/pass") {
-    let body;
-    try {
-      body = await parseJsonBody(req);
-    } catch (error) {
-      return json(res, 400, { ok: false, error: String(error.message || error) });
-    }
-
-    const handle = body?.handle;
-    if (!handle || typeof handle !== "string" || !/^[a-zA-Z0-9_]{1,50}$/.test(handle)) {
-      return json(res, 400, {
-        ok: false,
-        error: "handle is required and must match ^[a-zA-Z0-9_]{1,50}$"
-      });
-    }
-
-    const paymentSignature = req.headers["payment-signature"];
-    if (!verifyPaymentSignature(paymentSignature)) {
-      const paymentRequired = buildPaymentRequiredHeader({
-        baseUrl: BASE_URL,
-        amountUsd: PASS_FEE_USD
-      });
-
-      return json(
-        res,
-        402,
-        {
-          ok: false,
-          error: "Payment Required"
-        },
-        {
-          "cache-control": "no-store",
-          "payment-required": paymentRequired,
-          "www-authenticate": 'Payment realm="puffpuffpass.fun", method="x402", intent="charge"'
-        }
-      );
-    }
-
-    const txHash = typeof body.txHash === "string" ? body.txHash : "pending";
-    const message = typeof body.message === "string" ? body.message : null;
-
-    const result = store.applyPass({
-      handle,
-      amountUsd: PASS_FEE_USD,
-      txHash,
-      paymentSignature,
-      message
-    });
-
-    return json(res, 200, {
-      ok: true,
-      event: result.event,
-      current: store.getCurrent(),
-      leaderboardTop10: result.leaderboard.slice(0, 10)
-    });
-  }
-
-  return json(res, 404, { ok: false, error: "Not Found" });
-}
-
-const server = http.createServer((req, res) => {
-  handle(req, res).catch((error) => {
-    json(res, 500, { ok: false, error: String(error.message || error) });
+      now: new Date().toISOString(),
+      x402: {
+        facilitatorUrl: FACILITATOR_URL,
+        network: X402_NETWORK,
+        payTo: PAY_TO,
+        feeUsd: PASS_FEE_USD
+      }
   });
 });
 
-server.listen(PORT, () => {
+app.get("/", async (_req, res, next) => {
+  try {
+    const html = await readFile(path.join(projectRoot, "public", "index.html"), "utf8");
+    res.status(200).type("html").send(html);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/joint/current", (_req, res) => {
+  return res.status(200).json({
+      ok: true,
+      passFeeUsd: PASS_FEE_USD,
+      ...store.getCurrent()
+  });
+});
+
+app.get("/api/feed", (req, res) => {
+  const limit = Math.min(100, Number(req.query.limit || 50));
+  return res.status(200).json({
+    ok: true,
+    items: store.getFeed(limit)
+  });
+});
+
+app.get("/api/leaderboard", (_req, res) => {
+  return res.status(200).json({
+    ok: true,
+    items: store.getLeaderboard()
+  });
+});
+
+app.get("/api/handles/:handle", (req, res) => {
+  const handleValue = req.params.handle;
+  if (!/^[a-zA-Z0-9_]{1,50}$/.test(handleValue)) {
+    return res.status(400).json({ ok: false, error: "Invalid handle format" });
+  }
+
+  const stats = store.getHandleStats(handleValue);
+  if (!stats) {
+    return res.status(404).json({ ok: false, error: "Handle not found" });
+  }
+
+  return res.status(200).json({ ok: true, item: stats });
+});
+
+app.get("/.well-known/x402", async (_req, res, next) => {
+  try {
+    const raw = await readFile(path.join(projectRoot, "public", ".well-known", "x402"), "utf8");
+    return res.status(200).type("json").send(raw);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/openapi.json", async (_req, res, next) => {
+  try {
+    const raw = await readFile(path.join(projectRoot, "openapi.json"), "utf8");
+    return res.status(200).type("json").send(raw);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post("/api/joint/pass", (req, res) => {
+  const handle = req.body?.handle;
+  if (!handle || typeof handle !== "string" || !/^[a-zA-Z0-9_]{1,50}$/.test(handle)) {
+    return res.status(400).json({
+      ok: false,
+      error: "handle is required and must match ^[a-zA-Z0-9_]{1,50}$"
+    });
+  }
+
+  const paymentSignature = req.headers["payment-signature"];
+  const txHash = typeof req.body.txHash === "string" ? req.body.txHash : "pending";
+  const message = typeof req.body.message === "string" ? req.body.message : null;
+
+  const result = store.applyPass({
+    handle,
+    amountUsd: PASS_FEE_USD,
+    txHash,
+    paymentSignature,
+    message
+  });
+
+  return res.status(200).json({
+    ok: true,
+    event: result.event,
+    current: store.getCurrent(),
+    leaderboardTop10: result.leaderboard.slice(0, 10)
+  });
+});
+
+app.use((req, res) => {
+  res.status(404).json({ ok: false, error: "Not Found" });
+});
+
+app.use((error, _req, res, _next) => {
+  res.status(500).json({ ok: false, error: String(error.message || error) });
+});
+
+app.listen(PORT, () => {
   process.stdout.write(`Puff Puff Pass API listening on ${BASE_URL}\n`);
+  process.stdout.write(`x402 facilitator: ${FACILITATOR_URL} (${X402_NETWORK})\n`);
 });

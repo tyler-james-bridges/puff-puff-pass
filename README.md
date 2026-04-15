@@ -6,7 +6,7 @@ Technical starter for the 4/20 "virtual joint" project.
 
 - HTTP API skeleton (Node built-in server)
 - In-memory leaderboard and feed logic
-- x402-style 402 challenge flow scaffold
+- Real x402 middleware integration for paid route enforcement
 - OpenAPI document
 - `.well-known/x402` discovery document
 - SQL schema draft for production persistence
@@ -14,14 +14,10 @@ Technical starter for the 4/20 "virtual joint" project.
 
 ## Current status
 
-This is intentionally a production-minded scaffold, but payment verification is still a placeholder.
+`POST /api/joint/pass` is protected by `@x402/express` middleware.
 
-`POST /api/joint/pass` currently:
-
-- Returns `402 Payment Required` with a `PAYMENT-REQUIRED` header when no payment signature is provided
-- Accepts any non-empty `PAYMENT-SIGNATURE` header as valid (temporary)
-
-Before production launch, wire real verification via a facilitator or local verifier.
+- Missing or invalid payment returns `402 Payment Required`
+- Valid payment is verified via configured facilitator and then passes through to route logic
 
 ## Run
 
@@ -31,6 +27,22 @@ node src/server.mjs
 ```
 
 Server defaults to `http://localhost:4020`.
+
+### Required env vars for real payment settlement
+
+```bash
+PAY_TO=0xYourReceivingAddress
+X402_NETWORK=eip155:8453
+FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402
+```
+
+For local/testnet quickstart you can use:
+
+```bash
+X402_NETWORK=eip155:84532
+FACILITATOR_URL=https://x402.org/facilitator
+PAY_TO=0xYourBaseSepoliaAddress
+```
 
 ## Test
 
