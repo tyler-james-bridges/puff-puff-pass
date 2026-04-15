@@ -1,6 +1,7 @@
 import "dotenv/config";
-import { wrapFetchWithPaymentFromConfig, decodePaymentResponseHeader } from "@x402/fetch";
-import { ExactEvmScheme } from "@x402/evm";
+import { wrapFetchWithPayment, decodePaymentResponseHeader, x402Client } from "@x402/fetch";
+import { toClientEvmSigner } from "@x402/evm";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 
 const {
@@ -17,15 +18,15 @@ if (!EVM_PRIVATE_KEY) {
 }
 
 const account = privateKeyToAccount(EVM_PRIVATE_KEY);
+const signer = toClientEvmSigner(account);
 
-const fetchWithPayment = wrapFetchWithPaymentFromConfig(fetch, {
-  schemes: [
-    {
-      network: BUYER_X402_NETWORK,
-      client: new ExactEvmScheme(account)
-    }
-  ]
+const client = new x402Client();
+registerExactEvmScheme(client, {
+  signer,
+  networks: BUYER_X402_NETWORK === "eip155:*" ? undefined : [BUYER_X402_NETWORK]
 });
+
+const fetchWithPayment = wrapFetchWithPayment(fetch, client);
 
 async function main() {
   process.stdout.write(`Running buyer E2E against ${BUYER_API_URL}\n`);
@@ -62,4 +63,3 @@ main().catch((error) => {
   process.stderr.write(`Buyer E2E failed: ${error?.message || String(error)}\n`);
   process.exit(1);
 });
-

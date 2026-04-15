@@ -6,6 +6,7 @@ import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { MemoryStore } from "./store/memory-store.mjs";
+import { createCdpAuthHeadersFactory } from "./x402/cdp-auth.mjs";
 
 const PORT = Number(process.env.PORT || 4020);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
@@ -13,6 +14,8 @@ const PASS_FEE_USD = process.env.PASS_FEE_USD || "0.00402";
 const FACILITATOR_URL = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
 const X402_NETWORK = process.env.X402_NETWORK || "eip155:84532";
 const PAY_TO = process.env.PAY_TO || "0x0000000000000000000000000000000000000000";
+const CDP_API_KEY_ID = process.env.CDP_API_KEY_ID;
+const CDP_API_KEY_SECRET = process.env.CDP_API_KEY_SECRET;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,8 +26,15 @@ const app = express();
 
 app.use(express.json({ limit: "1mb" }));
 
+const cdpHeadersFactory = createCdpAuthHeadersFactory({
+  facilitatorUrl: FACILITATOR_URL,
+  apiKeyId: CDP_API_KEY_ID,
+  apiKeySecret: CDP_API_KEY_SECRET
+});
+
 const facilitatorClient = new HTTPFacilitatorClient({
-  url: FACILITATOR_URL
+  url: FACILITATOR_URL,
+  createAuthHeaders: cdpHeadersFactory || undefined
 });
 
 const x402Server = new x402ResourceServer(facilitatorClient).register(

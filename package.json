@@ -9,6 +9,7 @@
     "test:e2e:buyer": "node scripts/buyer-e2e.mjs"
   },
   "dependencies": {
+    "@coinbase/cdp-sdk": "^1.47.0",
     "@x402/core": "^2.10.0",
     "@x402/evm": "^2.10.0",
     "@x402/express": "^2.10.0",

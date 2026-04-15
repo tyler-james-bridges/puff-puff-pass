@@ -34,6 +34,8 @@ Server defaults to `http://localhost:4020`.
 PAY_TO=0xYourReceivingAddress
 X402_NETWORK=eip155:8453
 FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402
+CDP_API_KEY_ID=...
+CDP_API_KEY_SECRET=...
 ```
 
 For local/testnet quickstart you can use:
