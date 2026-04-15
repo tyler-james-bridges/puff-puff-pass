@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+import { privateKeyToAccount } from "viem/accounts";
 
 const PORT = Number(process.env.PORT || 4020);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
@@ -43,6 +44,24 @@ async function fetchLeaderboard() {
 
 async function run() {
   const buyerHandle = process.env.BUYER_HANDLE || "tmoney_145";
+  const payTo = process.env.PAY_TO;
+  const buyerPrivateKey = process.env.EVM_PRIVATE_KEY;
+
+  if (payTo && buyerPrivateKey && process.env.ALLOW_SELF_PAY !== "1") {
+    try {
+      const buyerAddress = privateKeyToAccount(buyerPrivateKey).address.toLowerCase();
+      if (buyerAddress === payTo.toLowerCase()) {
+        throw new Error(
+          `PAY_TO (${payTo}) must be different from buyer wallet (${buyerAddress}) for verification runs. Set ALLOW_SELF_PAY=1 to override.`
+        );
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("PAY_TO")) {
+        throw error;
+      }
+      throw new Error(`Could not validate buyer/payTo addresses: ${error?.message || String(error)}`);
+    }
+  }
 
   process.stdout.write(`Starting Puff Puff Pass server on ${BASE_URL}\n`);
   const server = spawnProcess("node", ["src/server.mjs"], { stdio: "pipe" });

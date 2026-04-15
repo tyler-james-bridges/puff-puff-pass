@@ -22,6 +22,9 @@ const X402_NETWORKS = (process.env.X402_NETWORKS || process.env.X402_NETWORK || 
 const PAY_TO = process.env.PAY_TO || "0x0000000000000000000000000000000000000000";
 const ABSTRACT_USDC_ASSET =
   process.env.ABSTRACT_USDC_ASSET || "0x84a71ccd554cc1b02749b35d22f684cc8ec987e1";
+const ABSTRACT_USDC_NAME =
+  process.env.ABSTRACT_USDC_NAME || "Bridged USDC (Stargate)";
+const ABSTRACT_USDC_VERSION = process.env.ABSTRACT_USDC_VERSION || "2";
 const CDP_API_KEY_ID = process.env.CDP_API_KEY_ID;
 const CDP_API_KEY_SECRET = process.env.CDP_API_KEY_SECRET;
 
@@ -77,8 +80,9 @@ async function startServer() {
       amount: String(Math.round(amount * 1_000_000)),
       asset: ABSTRACT_USDC_ASSET,
       extra: {
-        name: "USD Coin",
-        version: "2"
+        name: ABSTRACT_USDC_NAME,
+        version: ABSTRACT_USDC_VERSION,
+        decimals: 6
       }
     };
   });
@@ -110,8 +114,9 @@ async function startServer() {
             amount: microUsd,
             asset: ABSTRACT_USDC_ASSET,
             extra: {
-              name: "USD Coin",
-              version: "2"
+              name: ABSTRACT_USDC_NAME,
+              version: ABSTRACT_USDC_VERSION,
+              decimals: 6
             }
           }
         : `$${PASS_FEE_USD}`,

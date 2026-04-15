@@ -92,6 +92,7 @@ Notes:
 
 - Wallet must be funded for the selected network/token.
 - Server must be running with valid facilitator and `PAY_TO` config.
+- For stable verification, keep `PAY_TO` different from the buyer wallet derived from `EVM_PRIVATE_KEY`.
 
 ## One-command verification (starts server, runs paid pass, asserts leaderboard changes)
 
@@ -106,6 +107,8 @@ This command:
 3. Runs the real buyer paid-pass script
 4. Verifies buyer pass count increased on leaderboard
 5. Stops server
+
+If you intentionally need self-pay during experiments, set `ALLOW_SELF_PAY=1`.
 
 ## API routes
 
