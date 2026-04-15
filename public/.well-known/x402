@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "resources": [
+    "https://puffpuffpass.fun/api/joint/pass"
+  ],
+  "description": "Pay with x402 to pass the virtual joint and move on the leaderboard."
+}

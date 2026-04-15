@@ -1,0 +1,112 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Puff Puff Pass API",
+    "version": "0.1.0",
+    "description": "Pay with x402 to pass a virtual joint and move on the leaderboard."
+  },
+  "servers": [
+    {
+      "url": "https://puffpuffpass.fun"
+    }
+  ],
+  "paths": {
+    "/api/joint/current": {
+      "get": {
+        "operationId": "getCurrent",
+        "responses": {
+          "200": {
+            "description": "Current holder and summary"
+          }
+        }
+      }
+    },
+    "/api/feed": {
+      "get": {
+        "operationId": "getFeed",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent pass feed"
+          }
+        }
+      }
+    },
+    "/api/leaderboard": {
+      "get": {
+        "operationId": "getLeaderboard",
+        "responses": {
+          "200": {
+            "description": "Leaderboard rows"
+          }
+        }
+      }
+    },
+    "/api/joint/pass": {
+      "post": {
+        "operationId": "passJoint",
+        "summary": "Pay to pass the virtual joint and claim the live holder slot.",
+        "x-payment-info": {
+          "price": {
+            "mode": "fixed",
+            "currency": "USD",
+            "amount": "0.00402"
+          },
+          "protocols": [
+            {
+              "x402": {}
+            }
+          ]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "handle": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50,
+                    "pattern": "^[a-zA-Z0-9_]+$"
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 140
+                  },
+                  "txHash": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "handle"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pass accepted"
+          },
+          "402": {
+            "description": "Payment Required"
+          }
+        }
+      }
+    }
+  }
+}
