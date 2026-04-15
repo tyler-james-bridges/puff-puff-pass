@@ -334,4 +334,31 @@ export class PostgresStore {
       throw error;
     }
   }
+
+  async backfillLatestPendingTxHash(handle, txHash) {
+    if (!handle || !txHash || txHash === "pending") return null;
+
+    const target = await this.db.query(
+      `select id
+      from passes
+      where handle = $1
+        and (tx_hash is null or tx_hash = 'pending')
+      order by created_at desc
+      limit 1`,
+      [handle]
+    );
+
+    const targetId = target.rows[0]?.id;
+    if (!targetId) return null;
+
+    const { rows } = await this.db.query(
+      `update passes
+      set tx_hash = $2
+      where id = $1
+      returning id`,
+      [targetId, txHash]
+    );
+
+    return rows[0]?.id ?? null;
+  }
 }

@@ -77,3 +77,33 @@ test("PostgresStore applyPass updates holder, feed, and leaderboard", async () =
 
   await store.close();
 });
+
+test("PostgresStore backfillLatestPendingTxHash updates most recent pending pass", async () => {
+  const store = new PostgresStore(createTestDbClient());
+  await store.init();
+
+  await store.applyPass({
+    handle: "alpha",
+    amountUsd: "0.00402",
+    txHash: "pending",
+    paymentSignature: "sig-a",
+    message: "first"
+  });
+
+  await store.applyPass({
+    handle: "alpha",
+    amountUsd: "0.00402",
+    txHash: "pending",
+    paymentSignature: "sig-b",
+    message: "second"
+  });
+
+  const updatedId = await store.backfillLatestPendingTxHash("alpha", "0xfeedbeef");
+  assert.ok(updatedId);
+
+  const feed = await store.getFeed(2);
+  assert.equal(feed[0].txHash, "0xfeedbeef");
+  assert.equal(feed[1].txHash, "pending");
+
+  await store.close();
+});

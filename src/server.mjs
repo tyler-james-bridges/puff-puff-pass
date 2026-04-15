@@ -127,6 +127,29 @@ async function startServer() {
 
   const accepts = acceptItems.length === 1 ? acceptItems[0] : acceptItems;
 
+  app.use((req, res, next) => {
+    if (req.method === "POST" && req.path === "/api/joint/pass") {
+      const handle = typeof req.body?.handle === "string" ? req.body.handle : null;
+      res.on("finish", () => {
+        const encoded = res.getHeader("PAYMENT-RESPONSE") || res.getHeader("payment-response");
+        if (!encoded || !handle) return;
+
+        try {
+          const decoded = JSON.parse(Buffer.from(String(encoded), "base64").toString("utf8"));
+          const txHash = decoded?.transaction;
+          if (typeof txHash === "string" && txHash.startsWith("0x")) {
+            store.backfillLatestPendingTxHash(handle, txHash).catch((error) => {
+              process.stderr.write(`[puff-puff-pass] tx backfill failed: ${error?.message || String(error)}\n`);
+            });
+          }
+        } catch (error) {
+          process.stderr.write(`[puff-puff-pass] payment-response decode failed: ${error?.message || String(error)}\n`);
+        }
+      });
+    }
+    next();
+  });
+
   app.use(
     paymentMiddlewareFromConfig(
       {
