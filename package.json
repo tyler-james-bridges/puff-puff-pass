@@ -5,17 +5,23 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.mjs",
-    "test": "node --test src/core/*.test.mjs",
-    "test:e2e:buyer": "node scripts/buyer-e2e.mjs"
+    "test": "node --test src/core/*.test.mjs src/store/*.test.mjs",
+    "test:e2e:buyer": "node scripts/buyer-e2e.mjs",
+    "verify:paid-pass": "node scripts/verify-paid-pass.mjs"
   },
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.47.0",
-    "@x402/core": "^2.10.0",
-    "@x402/evm": "^2.10.0",
-    "@x402/express": "^2.10.0",
-    "@x402/fetch": "^2.10.0",
+    "@electric-sql/pglite": "^0.4.4",
+    "@x402/core": "^2.5.0",
+    "@x402/evm": "^2.5.0",
+    "@x402/express": "^2.5.0",
+    "@x402/fetch": "^2.6.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "pg": "^8.20.0",
     "viem": "^2.47.18"
+  },
+  "devDependencies": {
+    "pg-mem": "^3.0.14"
   }
 }

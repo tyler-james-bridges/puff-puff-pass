@@ -1,34 +1,57 @@
 # Puff Puff Pass API (x402)
 
-Technical starter for the 4/20 "virtual joint" project.
+Technical starter for the 4/20 virtual joint project.
 
 ## What is included
 
-- HTTP API skeleton (Node built-in server)
-- In-memory leaderboard and feed logic
-- Real x402 middleware integration for paid route enforcement
-- OpenAPI document
-- `.well-known/x402` discovery document
-- SQL schema draft for production persistence
-- Unit tests for ranking and culture-line generation
+- Express API with x402-protected paid pass route
+- Postgres-backed persistence layer (`leaderboard_stats`, `passes`, `holder_state`)
+- Built-in local Postgres-compatible fallback via PGlite (file-backed)
+- Functional dark-mode frontend (`/`) for current holder, pass form, feed, and leaderboard
+- OpenAPI document + `.well-known/x402`
+- Unit tests for ranking, culture lines, badges, and store behavior
+- Buyer E2E paid-pass script + one-command verification flow
 
 ## Current status
 
 `POST /api/joint/pass` is protected by `@x402/express` middleware.
 
 - Missing or invalid payment returns `402 Payment Required`
-- Valid payment is verified via configured facilitator and then passes through to route logic
+- Valid payment is verified via configured facilitator and then persisted
 
 ## Run
 
 ```bash
 cd puff-puff-pass
-node src/server.mjs
+npm install
+npm start
 ```
 
 Server defaults to `http://localhost:4020`.
 
-### Required env vars for real payment settlement
+## Storage configuration
+
+### Option A: External Postgres
+
+Set `DATABASE_URL` and the app uses `pg`.
+
+```bash
+DATABASE_URL=postgres://user:pass@localhost:5432/puff_puff_pass
+```
+
+### Option B: Local embedded Postgres-compatible storage (default)
+
+If `DATABASE_URL` is not set, app uses PGlite and persists to `./.data/pglite`.
+
+Optional override:
+
+```bash
+PGLITE_DATA_DIR=./.data/pglite
+```
+
+Schema is auto-applied from `db/schema.sql` at startup.
+
+## Required env vars for real payment settlement
 
 ```bash
 PAY_TO=0xYourReceivingAddress
@@ -47,24 +70,17 @@ FACILITATOR_URL=https://x402.org/facilitator
 PAY_TO=0xYourBaseSepoliaAddress
 ```
 
-### Abstract + Tempo notes
+## Tests
 
-- Abstract support is enabled by adding `eip155:2741` to `X402_NETWORKS`.
-- Tempo support depends on facilitator capabilities and client method selection. The API now supports multi-network x402 challenges, and clients/facilitators can negotiate tempo where available.
-
-## Test
+Run unit tests:
 
 ```bash
-cd puff-puff-pass
-node --test src/core/*.test.mjs
+npm test
 ```
 
-### Buyer E2E payment test (real x402)
-
-This test script behaves like a real buyer and attempts to pay your protected endpoint.
+## Buyer E2E payment test (real x402)
 
 ```bash
-cd puff-puff-pass
 EVM_PRIVATE_KEY=0x... \
 BUYER_API_URL=http://localhost:4020/api/joint/pass \
 BUYER_HANDLE=tmoney_145 \
@@ -74,9 +90,22 @@ npm run test:e2e:buyer
 
 Notes:
 
-- Wallet must be funded for the selected network and token.
-- Server must be running with valid `PAY_TO`, `X402_NETWORK`, and facilitator settings.
-- Use `eip155:*` for broad matching, or set exact chain (for example `eip155:84532`).
+- Wallet must be funded for the selected network/token.
+- Server must be running with valid facilitator and `PAY_TO` config.
+
+## One-command verification (starts server, runs paid pass, asserts leaderboard changes)
+
+```bash
+npm run verify:paid-pass
+```
+
+This command:
+
+1. Starts the API server
+2. Reads leaderboard
+3. Runs the real buyer paid-pass script
+4. Verifies buyer pass count increased on leaderboard
+5. Stops server
 
 ## API routes
 
@@ -85,6 +114,6 @@ Notes:
 - `GET /api/leaderboard`
 - `GET /api/handles/:handle`
 - `GET /api/health`
-- `POST /api/joint/pass`
+- `POST /api/joint/pass` (x402 challenge)
 - `GET /.well-known/x402`
 - `GET /openapi.json`

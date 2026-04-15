@@ -9,6 +9,10 @@
         color-scheme: dark;
       }
 
+      * {
+        box-sizing: border-box;
+      }
+
       body {
         margin: 0;
         font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -22,12 +26,34 @@
         padding: 24px;
       }
 
-      h1 {
-        margin-bottom: 6px;
+      .header {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
       }
 
       .muted {
         color: #9ca3af;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      @media (min-width: 900px) {
+        .grid {
+          grid-template-columns: 1.2fr 1fr;
+        }
       }
 
       .card {
@@ -35,40 +61,269 @@
         background: #1f2937;
         border-radius: 12px;
         padding: 16px;
+      }
+
+      .card + .card {
         margin-top: 16px;
       }
 
-      code {
+      .stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #374151;
+      }
+
+      .stat:last-child {
+        border-bottom: 0;
+      }
+
+      .label {
+        color: #9ca3af;
+      }
+
+      form {
+        display: grid;
+        gap: 10px;
+      }
+
+      input,
+      textarea,
+      button {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #374151;
         background: #0f172a;
-        padding: 2px 6px;
-        border-radius: 6px;
+        color: #f9fafb;
+        padding: 10px;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+
+      button {
+        cursor: pointer;
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+        font-weight: 600;
+      }
+
+      button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      .status {
+        min-height: 20px;
+        font-size: 0.95rem;
+      }
+
+      .status.error {
+        color: #f87171;
+      }
+
+      .status.ok {
+        color: #34d399;
+      }
+
+      .list {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 8px;
+      }
+
+      .list-item {
+        border: 1px solid #374151;
+        border-radius: 10px;
+        padding: 10px;
+        background: #111827;
+      }
+
+      .top-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
     </style>
   </head>
   <body>
     <main class="wrap">
-      <h1>Puff Puff Pass</h1>
-      <p class="muted">x402-gated virtual joint leaderboard.</p>
+      <header class="header">
+        <div>
+          <h1>Puff Puff Pass</h1>
+          <p class="muted">x402-gated virtual joint leaderboard</p>
+        </div>
+        <button id="refresh-btn" type="button">Refresh</button>
+      </header>
 
-      <section class="card">
-        <h2>API</h2>
-        <ul>
-          <li><code>GET /api/health</code></li>
-          <li><code>GET /api/joint/current</code></li>
-          <li><code>GET /api/feed?limit=50</code></li>
-          <li><code>GET /api/leaderboard</code></li>
-          <li><code>GET /api/handles/:handle</code></li>
-          <li><code>POST /api/joint/pass</code> (x402 challenge)</li>
-        </ul>
-      </section>
+      <section class="grid">
+        <div>
+          <article class="card">
+            <h2>Current Holder</h2>
+            <div class="stat">
+              <span class="label">Handle</span>
+              <strong id="current-holder">—</strong>
+            </div>
+            <div class="stat">
+              <span class="label">Total Passes</span>
+              <strong id="current-total">0</strong>
+            </div>
+            <div class="stat">
+              <span class="label">Pass Fee</span>
+              <strong id="pass-fee">—</strong>
+            </div>
+          </article>
 
-      <section class="card">
-        <h2>Current phase</h2>
-        <p class="muted">
-          Core backend is live. Next up is real payment verification + front-end game surface.
-        </p>
+          <article class="card">
+            <h2>Pass Form</h2>
+            <p class="muted">This endpoint is x402-protected. Browser requests without payment will return 402.</p>
+            <form id="pass-form">
+              <input name="handle" placeholder="handle (required)" maxlength="50" required />
+              <input name="txHash" placeholder="txHash (optional)" />
+              <textarea name="message" placeholder="message (optional)"></textarea>
+              <button id="submit-btn" type="submit">Send Pass</button>
+            </form>
+            <p id="pass-status" class="status muted"></p>
+          </article>
+        </div>
+
+        <div>
+          <article class="card">
+            <h2>Leaderboard</h2>
+            <ul id="leaderboard-list" class="list"></ul>
+          </article>
+
+          <article class="card">
+            <h2>Feed</h2>
+            <ul id="feed-list" class="list"></ul>
+          </article>
+        </div>
       </section>
     </main>
-  </body>
-  </html>
 
+    <script>
+      const currentHolderEl = document.getElementById("current-holder");
+      const currentTotalEl = document.getElementById("current-total");
+      const passFeeEl = document.getElementById("pass-fee");
+      const leaderboardListEl = document.getElementById("leaderboard-list");
+      const feedListEl = document.getElementById("feed-list");
+      const statusEl = document.getElementById("pass-status");
+      const passFormEl = document.getElementById("pass-form");
+      const submitBtnEl = document.getElementById("submit-btn");
+
+      function setStatus(text, type = "muted") {
+        statusEl.textContent = text;
+        statusEl.className = `status ${type}`;
+      }
+
+      function renderLeaderboard(items) {
+        leaderboardListEl.innerHTML = "";
+        if (!items.length) {
+          leaderboardListEl.innerHTML = '<li class="list-item muted">No passes yet.</li>';
+          return;
+        }
+
+        for (const row of items.slice(0, 10)) {
+          const li = document.createElement("li");
+          li.className = "list-item";
+          li.innerHTML = `
+            <div class="top-line"><strong>#${row.rank} @${row.handle}</strong><span>${row.score} pts</span></div>
+            <div class="muted">passes: ${row.totalPasses} • streak: ${row.longestStreak} • first takes: ${row.firstTakes}</div>
+          `;
+          leaderboardListEl.appendChild(li);
+        }
+      }
+
+      function renderFeed(items) {
+        feedListEl.innerHTML = "";
+        if (!items.length) {
+          feedListEl.innerHTML = '<li class="list-item muted">Feed is quiet.</li>';
+          return;
+        }
+
+        for (const item of items.slice(0, 8)) {
+          const li = document.createElement("li");
+          li.className = "list-item";
+          li.innerHTML = `
+            <div class="top-line"><strong>@${item.handle}</strong><span class="muted">${new Date(item.createdAt).toLocaleString()}</span></div>
+            <div class="muted">${item.gainLine || "pass logged"}</div>
+            <div class="mono muted">${item.status}${item.txHash ? ` • ${item.txHash}` : ""}</div>
+          `;
+          feedListEl.appendChild(li);
+        }
+      }
+
+      async function refreshAll() {
+        const [currentRes, leaderboardRes, feedRes] = await Promise.all([
+          fetch("/api/joint/current"),
+          fetch("/api/leaderboard"),
+          fetch("/api/feed?limit=20")
+        ]);
+
+        const current = await currentRes.json();
+        const leaderboard = await leaderboardRes.json();
+        const feed = await feedRes.json();
+
+        currentHolderEl.textContent = current.currentHolder ? `@${current.currentHolder}` : "Nobody yet";
+        currentTotalEl.textContent = String(current.totalPasses ?? 0);
+        passFeeEl.textContent = `$${current.passFeeUsd}`;
+        renderLeaderboard(leaderboard.items || []);
+        renderFeed(feed.items || []);
+      }
+
+      passFormEl.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setStatus("Submitting pass...", "muted");
+        submitBtnEl.disabled = true;
+
+        const formData = new FormData(passFormEl);
+        const payload = {
+          handle: String(formData.get("handle") || "").trim(),
+          txHash: String(formData.get("txHash") || "").trim() || undefined,
+          message: String(formData.get("message") || "").trim() || undefined
+        };
+
+        try {
+          const res = await fetch("/api/joint/pass", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const body = await res.json().catch(() => ({}));
+
+          if (!res.ok) {
+            const errorText = body?.error || `HTTP ${res.status}`;
+            const hint = res.status === 402 ? " (x402 payment required)" : "";
+            throw new Error(errorText + hint);
+          }
+
+          setStatus(`Pass accepted for @${payload.handle}`, "ok");
+          passFormEl.reset();
+          await refreshAll();
+        } catch (error) {
+          setStatus(error.message || String(error), "error");
+        } finally {
+          submitBtnEl.disabled = false;
+        }
+      });
+
+      document.getElementById("refresh-btn").addEventListener("click", () => {
+        refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
+      });
+
+      refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
+    </script>
+  </body>
+</html>

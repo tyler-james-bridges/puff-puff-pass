@@ -2,6 +2,8 @@ import "dotenv/config";
 import { wrapFetchWithPayment, decodePaymentResponseHeader, x402Client } from "@x402/fetch";
 import { toClientEvmSigner } from "@x402/evm";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import { createPublicClient, http } from "viem";
+import { abstract, abstractTestnet, base, baseSepolia } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 
 const {
@@ -17,8 +19,42 @@ if (!EVM_PRIVATE_KEY) {
   process.exit(1);
 }
 
+function getViemChain(network) {
+  switch (network) {
+    case "eip155:2741":
+      return abstract;
+    case "eip155:11124":
+      return abstractTestnet;
+    case "eip155:84532":
+      return baseSepolia;
+    case "eip155:8453":
+      return base;
+    default:
+      return null;
+  }
+}
+
 const account = privateKeyToAccount(EVM_PRIVATE_KEY);
-const signer = toClientEvmSigner(account);
+const wildcardFallbackNetwork =
+  process.env.X402_NETWORK ||
+  process.env.X402_NETWORKS?.split(",").map((item) => item.trim()).filter(Boolean)[0] ||
+  "eip155:8453";
+const selectedNetwork = BUYER_X402_NETWORK === "eip155:*" ? wildcardFallbackNetwork : BUYER_X402_NETWORK;
+const selectedChain = getViemChain(selectedNetwork);
+
+if (!selectedChain) {
+  process.stderr.write(
+    `Unsupported BUYER_X402_NETWORK '${selectedNetwork}'. Use one of: eip155:8453, eip155:84532, eip155:2741, eip155:11124\n`
+  );
+  process.exit(1);
+}
+
+const publicClient = createPublicClient({
+  chain: selectedChain,
+  transport: http()
+});
+
+const signer = toClientEvmSigner(account, publicClient);
 
 const client = new x402Client();
 registerExactEvmScheme(client, {
@@ -45,11 +81,15 @@ async function main() {
 
   const bodyText = await response.text();
   const paymentResponse = response.headers.get("payment-response");
+  const paymentRequired = response.headers.get("payment-required");
 
   process.stdout.write(`HTTP ${response.status}\n`);
   if (paymentResponse) {
     const decoded = decodePaymentResponseHeader(paymentResponse);
     process.stdout.write(`PAYMENT-RESPONSE: ${JSON.stringify(decoded)}\n`);
+  }
+  if (paymentRequired) {
+    process.stdout.write(`PAYMENT-REQUIRED: ${paymentRequired}\n`);
   }
 
   process.stdout.write(`Body: ${bodyText}\n`);
@@ -60,6 +100,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`Buyer E2E failed: ${error?.message || String(error)}\n`);
+  process.stderr.write(`Buyer E2E failed: ${error?.stack || error?.message || String(error)}\n`);
   process.exit(1);
 });
