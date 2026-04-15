@@ -51,6 +51,25 @@ cd puff-puff-pass
 node --test src/core/*.test.mjs
 ```
 
+### Buyer E2E payment test (real x402)
+
+This test script behaves like a real buyer and attempts to pay your protected endpoint.
+
+```bash
+cd puff-puff-pass
+EVM_PRIVATE_KEY=0x... \
+BUYER_API_URL=http://localhost:4020/api/joint/pass \
+BUYER_HANDLE=tmoney_145 \
+BUYER_X402_NETWORK=eip155:* \
+npm run test:e2e:buyer
+```
+
+Notes:
+
+- Wallet must be funded for the selected network and token.
+- Server must be running with valid `PAY_TO`, `X402_NETWORK`, and facilitator settings.
+- Use `eip155:*` for broad matching, or set exact chain (for example `eip155:84532`).
+
 ## API routes
 
 - `GET /api/joint/current`
