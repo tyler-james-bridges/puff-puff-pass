@@ -32,8 +32,9 @@ Server defaults to `http://localhost:4020`.
 
 ```bash
 PAY_TO=0xYourReceivingAddress
-X402_NETWORK=eip155:8453
+X402_NETWORKS=eip155:8453,eip155:2741
 FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402
+FACILITATOR_URL_ABSTRACT=https://facilitator.x402.abs.xyz
 CDP_API_KEY_ID=...
 CDP_API_KEY_SECRET=...
 ```
@@ -41,10 +42,15 @@ CDP_API_KEY_SECRET=...
 For local/testnet quickstart you can use:
 
 ```bash
-X402_NETWORK=eip155:84532
+X402_NETWORKS=eip155:84532
 FACILITATOR_URL=https://x402.org/facilitator
 PAY_TO=0xYourBaseSepoliaAddress
 ```
+
+### Abstract + Tempo notes
+
+- Abstract support is enabled by adding `eip155:2741` to `X402_NETWORKS`.
+- Tempo support depends on facilitator capabilities and client method selection. The API now supports multi-network x402 challenges, and clients/facilitators can negotiate tempo where available.
 
 ## Test
 

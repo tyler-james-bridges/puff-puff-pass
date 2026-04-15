@@ -12,7 +12,12 @@ const PORT = Number(process.env.PORT || 4020);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const PASS_FEE_USD = process.env.PASS_FEE_USD || "0.00402";
 const FACILITATOR_URL = process.env.FACILITATOR_URL || "https://x402.org/facilitator";
-const X402_NETWORK = process.env.X402_NETWORK || "eip155:84532";
+const FACILITATOR_URL_ABSTRACT =
+  process.env.FACILITATOR_URL_ABSTRACT || "https://facilitator.x402.abs.xyz";
+const X402_NETWORKS = (process.env.X402_NETWORKS || process.env.X402_NETWORK || "eip155:8453")
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
 const PAY_TO = process.env.PAY_TO || "0x0000000000000000000000000000000000000000";
 const CDP_API_KEY_ID = process.env.CDP_API_KEY_ID;
 const CDP_API_KEY_SECRET = process.env.CDP_API_KEY_SECRET;
@@ -32,28 +37,34 @@ const cdpHeadersFactory = createCdpAuthHeadersFactory({
   apiKeySecret: CDP_API_KEY_SECRET
 });
 
-const facilitatorClient = new HTTPFacilitatorClient({
+const cdpFacilitatorClient = new HTTPFacilitatorClient({
   url: FACILITATOR_URL,
   createAuthHeaders: cdpHeadersFactory || undefined
 });
 
-const x402Server = new x402ResourceServer(facilitatorClient).register(
-  X402_NETWORK,
-  new ExactEvmScheme()
-);
+const abstractFacilitatorClient = new HTTPFacilitatorClient({
+  url: FACILITATOR_URL_ABSTRACT
+});
+
+const facilitatorClients =
+  FACILITATOR_URL_ABSTRACT === FACILITATOR_URL
+    ? [cdpFacilitatorClient]
+    : [cdpFacilitatorClient, abstractFacilitatorClient];
+
+const x402Server = new x402ResourceServer(facilitatorClients).register("eip155:*", new ExactEvmScheme());
+
+const accepts = X402_NETWORKS.map((network) => ({
+  scheme: "exact",
+  price: `$${PASS_FEE_USD}`,
+  network,
+  payTo: PAY_TO
+}));
 
 app.use(
   paymentMiddleware(
     {
       "POST /api/joint/pass": {
-        accepts: [
-          {
-            scheme: "exact",
-            price: `$${PASS_FEE_USD}`,
-            network: X402_NETWORK,
-            payTo: PAY_TO
-          }
-        ],
+        accepts,
         description: "Pay to pass the virtual joint and claim the live holder slot.",
         mimeType: "application/json"
       }
@@ -69,7 +80,8 @@ app.get("/api/health", (_req, res) => {
       now: new Date().toISOString(),
       x402: {
         facilitatorUrl: FACILITATOR_URL,
-        network: X402_NETWORK,
+        facilitatorUrlAbstract: FACILITATOR_URL_ABSTRACT,
+        networks: X402_NETWORKS,
         payTo: PAY_TO,
         feeUsd: PASS_FEE_USD
       }
@@ -179,5 +191,6 @@ app.use((error, _req, res, _next) => {
 
 app.listen(PORT, () => {
   process.stdout.write(`Puff Puff Pass API listening on ${BASE_URL}\n`);
-  process.stdout.write(`x402 facilitator: ${FACILITATOR_URL} (${X402_NETWORK})\n`);
+  process.stdout.write(`x402 facilitators: ${FACILITATOR_URL}, ${FACILITATOR_URL_ABSTRACT}\n`);
+  process.stdout.write(`x402 networks: ${X402_NETWORKS.join(", ")}\n`);
 });

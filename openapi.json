@@ -100,6 +100,12 @@
           "protocols": [
             {
               "x402": {}
+            },
+            {
+              "mpp": {
+                "method": "tempo",
+                "intent": "charge"
+              }
             }
           ]
         },
