@@ -1,68 +1,53 @@
-# Puff Puff Pass API (x402)
+# Puff Puff Pass
 
-Technical starter for the 4/20 virtual joint project.
+An x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard.
 
-## What is included
+**Live:** [ppp.0x402.sh](https://ppp.0x402.sh)
 
-- Express API with x402-protected paid pass route
-- Postgres-backed persistence layer (`leaderboard_stats`, `passes`, `holder_state`)
-- Built-in local Postgres-compatible fallback via PGlite (file-backed)
-- Functional dark-mode frontend (`/`) for current holder, pass form, feed, and leaderboard
-- OpenAPI document + `.well-known/x402`
-- Unit tests for ranking, culture lines, badges, and store behavior
-- Buyer E2E paid-pass script + one-command verification flow
+## How it works
 
-## Current status
+1. Connect your wallet (MetaMask or any browser wallet)
+2. Enter your handle and hit "Pass It"
+3. Sign a $0.00402 USDC transfer via the x402 protocol
+4. You're now holding the joint. Climb the leaderboard.
 
-`POST /api/joint/pass` is protected by `@x402/express` middleware.
+Every pass costs $0.00402 in USDC, settled onchain via [x402](https://x402.org) payment protocol. Supports Base mainnet and Abstract mainnet.
 
-- Missing or invalid payment returns `402 Payment Required`
-- Valid payment is verified via configured facilitator and then persisted
+## Stack
 
-## Run
+- **Server:** Express.js with `@x402/express` payment middleware
+- **Database:** Postgres (Neon) with PGlite fallback for local dev
+- **Frontend:** Vanilla HTML/CSS/JS, dark theme, mobile-responsive
+- **Wallet:** Browser wallet connect via ethers.js v6 (CDN, no build step)
+- **Payments:** x402 exact EVM scheme (EIP-3009 transferWithAuthorization)
+- **Deploy:** Vercel serverless + GitHub Actions CI/CD
+- **Chains:** Base (eip155:8453) via CDP facilitator, Abstract (eip155:2741) via Abstract facilitator
+
+## Run locally
 
 ```bash
-cd puff-puff-pass
 npm install
 npm start
 ```
 
-Server defaults to `http://localhost:4020`.
+Server starts at `http://localhost:4020`. Uses PGlite by default (no external DB needed).
 
-## Storage configuration
+## Environment variables
 
-### Option A: External Postgres
-
-Set `DATABASE_URL` and the app uses `pg`.
-
-```bash
-DATABASE_URL=postgres://user:pass@localhost:5432/puff_puff_pass
-```
-
-### Option B: Local embedded Postgres-compatible storage (default)
-
-If `DATABASE_URL` is not set, app uses PGlite and persists to `./.data/pglite`.
-
-Optional override:
-
-```bash
-PGLITE_DATA_DIR=./.data/pglite
-```
-
-Schema is auto-applied from `db/schema.sql` at startup.
-
-## Required env vars for real payment settlement
+### Required for production
 
 ```bash
 PAY_TO=0xYourReceivingAddress
 X402_NETWORKS=eip155:8453,eip155:2741
 FACILITATOR_URL=https://api.cdp.coinbase.com/platform/v2/x402
 FACILITATOR_URL_ABSTRACT=https://facilitator.x402.abs.xyz
-CDP_API_KEY_ID=...
-CDP_API_KEY_SECRET=...
+CDP_API_KEY_ID=your-cdp-key-id
+CDP_API_KEY_SECRET=your-cdp-key-secret
+DATABASE_URL=postgresql://...
+BASE_URL=https://ppp.0x402.sh
 ```
 
-For local/testnet quickstart you can use:
+### Local / testnet quickstart
 
 ```bash
 X402_NETWORKS=eip155:84532
@@ -70,53 +55,57 @@ FACILITATOR_URL=https://x402.org/facilitator
 PAY_TO=0xYourBaseSepoliaAddress
 ```
 
-## Tests
+No CDP keys needed for testnet. The x402.org facilitator handles Base Sepolia for free.
 
-Run unit tests:
+## Storage
+
+- **Production:** Set `DATABASE_URL` to a Postgres connection string
+- **Local dev:** Defaults to PGlite at `./.data/pglite` (zero config)
+- Schema auto-applies from `db/schema.sql` on startup
+
+## Tests
 
 ```bash
 npm test
 ```
 
-## Buyer E2E payment test (real x402)
+## Buyer E2E test (real x402 payment)
 
 ```bash
 EVM_PRIVATE_KEY=0x... \
 BUYER_API_URL=http://localhost:4020/api/joint/pass \
-BUYER_HANDLE=tmoney_145 \
+BUYER_HANDLE=your_handle \
 BUYER_X402_NETWORK=eip155:* \
 npm run test:e2e:buyer
 ```
 
-Notes:
+Note: `PAY_TO` must be different from the buyer wallet address. The CDP facilitator rejects self-payments.
 
-- Wallet must be funded for the selected network/token.
-- Server must be running with valid facilitator and `PAY_TO` config.
-- For stable verification, keep `PAY_TO` different from the buyer wallet derived from `EVM_PRIVATE_KEY`.
+## API
 
-## One-command verification (starts server, runs paid pass, asserts leaderboard changes)
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Frontend UI |
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/joint/current` | Current holder + total passes |
+| `GET` | `/api/leaderboard` | Top players with scores and badges |
+| `GET` | `/api/feed?limit=50` | Recent pass activity |
+| `GET` | `/api/handles/:handle` | Stats for a specific handle |
+| `POST` | `/api/joint/pass` | Pass the joint (x402-gated) |
+| `GET` | `/.well-known/x402` | x402 service discovery |
+| `GET` | `/openapi.json` | OpenAPI spec |
 
-```bash
-npm run verify:paid-pass
+## Architecture
+
+```
+Browser (ethers.js) -> POST /api/joint/pass
+                       -> 402 Payment Required (payment-required header)
+Browser signs EIP-3009 transferWithAuthorization
+                       -> POST /api/joint/pass + payment-signature header
+Server -> CDP/Abstract facilitator /verify -> /settle
+                       -> 200 OK + leaderboard update
 ```
 
-This command:
+## License
 
-1. Starts the API server
-2. Reads leaderboard
-3. Runs the real buyer paid-pass script
-4. Verifies buyer pass count increased on leaderboard
-5. Stops server
-
-If you intentionally need self-pay during experiments, set `ALLOW_SELF_PAY=1`.
-
-## API routes
-
-- `GET /api/joint/current`
-- `GET /api/feed?limit=50`
-- `GET /api/leaderboard`
-- `GET /api/handles/:handle`
-- `GET /api/health`
-- `POST /api/joint/pass` (x402 challenge)
-- `GET /.well-known/x402`
-- `GET /openapi.json`
+MIT
