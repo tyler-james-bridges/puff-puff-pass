@@ -66,6 +66,23 @@
         display: flex;
         flex-direction: column;
         gap: 32px;
+        position: relative;
+        isolation: isolate;
+      }
+
+      #joint-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+        display: block;
+      }
+
+      .spotlight > *:not(#joint-canvas) {
+        position: relative;
+        z-index: 1;
       }
 
       .site-title {
@@ -669,6 +686,7 @@
 
         <!-- Left: Spotlight -->
         <div class="spotlight">
+          <canvas id="joint-canvas" aria-hidden="true"></canvas>
           <div>
             <h1 class="site-title">Puff Puff Pass</h1>
             <p class="site-subtitle">x402-gated virtual joint leaderboard</p>
@@ -753,6 +771,491 @@
     <footer>Powered by <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a></footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
+    <script>
+      // ===== three.js scene: joint + smoke =====
+      (function initJointScene() {
+        const spotlight = document.querySelector('.spotlight');
+        const canvas = document.getElementById('joint-canvas');
+        if (!spotlight || !canvas || typeof THREE === 'undefined') return;
+
+        const reducedMotion = typeof matchMedia === 'function' &&
+          matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // --- Renderer / scene / camera ---
+        const renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance'
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setClearColor(0x000000, 0);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const scene = new THREE.Scene();
+
+        const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+        // Framing: joint sits lower-right, smoke rises upward
+        camera.position.set(0.1, 0.7, 3.6);
+        camera.lookAt(0.35, 0.1, 0);
+
+        // --- Joint model ---
+        const jointGroup = new THREE.Group();
+
+        // Paper body — slight taper (wider at ember end), subtle wrinkles
+        const paperGeom = new THREE.CylinderGeometry(0.068, 0.052, 1.55, 40, 10, false);
+        const pos = paperGeom.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i);
+          const y = pos.getY(i);
+          const z = pos.getZ(i);
+          const radial = Math.hypot(x, z) || 1;
+          // Band-shaped ripple pattern to mimic rolling paper
+          const wrinkle =
+            Math.sin(y * 38 + x * 6) * 0.0018 +
+            Math.sin(y * 72 + z * 4) * 0.0012;
+          pos.setXYZ(i, x + (x / radial) * wrinkle, y, z + (z / radial) * wrinkle);
+        }
+        paperGeom.computeVertexNormals();
+        const paperMat = new THREE.MeshStandardMaterial({
+          color: 0xe9dcc0,
+          roughness: 0.88,
+          metalness: 0.0
+        });
+        const paper = new THREE.Mesh(paperGeom, paperMat);
+        jointGroup.add(paper);
+
+        // Filter end (rolled tip, slightly darker beige)
+        const filterGeom = new THREE.CylinderGeometry(0.053, 0.05, 0.22, 32, 1, false);
+        const filterMat = new THREE.MeshStandardMaterial({
+          color: 0xbd9a66,
+          roughness: 0.92
+        });
+        const filter = new THREE.Mesh(filterGeom, filterMat);
+        filter.position.y = -0.775 - 0.11;
+        jointGroup.add(filter);
+
+        // Ash band near ember
+        const ashGeom = new THREE.CylinderGeometry(0.078, 0.07, 0.22, 36, 1, false);
+        const ashMat = new THREE.MeshStandardMaterial({
+          color: 0x524c46,
+          roughness: 1.0
+        });
+        const ash = new THREE.Mesh(ashGeom, ashMat);
+        ash.position.y = 0.66;
+        jointGroup.add(ash);
+
+        // Char ring (black burn line between paper and ember)
+        const charGeom = new THREE.CylinderGeometry(0.074, 0.078, 0.035, 32, 1, false);
+        const charMat = new THREE.MeshStandardMaterial({
+          color: 0x0a0807,
+          roughness: 1.0
+        });
+        const char = new THREE.Mesh(charGeom, charMat);
+        char.position.y = 0.78;
+        jointGroup.add(char);
+
+        // Ember — emissive disc/dome at tip
+        const emberGeom = new THREE.SphereGeometry(0.082, 28, 18);
+        const emberMat = new THREE.MeshStandardMaterial({
+          color: 0x1a0500,
+          emissive: 0xff5a22,
+          emissiveIntensity: 2.2,
+          roughness: 1.0,
+          metalness: 0.0
+        });
+        const ember = new THREE.Mesh(emberGeom, emberMat);
+        ember.position.y = 0.82;
+        ember.scale.set(1, 0.52, 1);
+        jointGroup.add(ember);
+
+        // Inner hot core (smaller, brighter)
+        const coreGeom = new THREE.SphereGeometry(0.045, 20, 14);
+        const coreMat = new THREE.MeshBasicMaterial({
+          color: 0xffd07a,
+          transparent: true,
+          opacity: 0.85
+        });
+        const core = new THREE.Mesh(coreGeom, coreMat);
+        core.position.y = 0.84;
+        core.scale.set(1, 0.45, 1);
+        jointGroup.add(core);
+
+        // Tilt + position in lower-right
+        jointGroup.rotation.z = Math.PI * 0.28;
+        jointGroup.position.set(0.55, -0.25, 0);
+        scene.add(jointGroup);
+
+        // World-space ember anchor for particle emission / point light
+        const emberAnchorLocal = new THREE.Vector3(0, 0.85, 0);
+        const emberWorld = new THREE.Vector3();
+
+        // --- Lights ---
+        scene.add(new THREE.AmbientLight(0x10b981, 0.18));
+
+        const keyLight = new THREE.DirectionalLight(0x9fb8ff, 0.55);
+        keyLight.position.set(-3, 4, 2.5);
+        scene.add(keyLight);
+
+        const emberLight = new THREE.PointLight(0xff6b35, 1.6, 5.5, 2.0);
+        scene.add(emberLight);
+
+        // --- Particle sprite texture (procedural soft circle) ---
+        function makeSoftCircleTexture(size) {
+          const c = document.createElement('canvas');
+          c.width = size;
+          c.height = size;
+          const ctx = c.getContext('2d');
+          const r = size / 2;
+          const g = ctx.createRadialGradient(r, r, 0, r, r, r);
+          g.addColorStop(0.0, 'rgba(255,255,255,1)');
+          g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+          g.addColorStop(0.75, 'rgba(255,255,255,0.12)');
+          g.addColorStop(1.0, 'rgba(255,255,255,0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, size, size);
+          const tex = new THREE.CanvasTexture(c);
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.needsUpdate = true;
+          return tex;
+        }
+        const smokeTex = makeSoftCircleTexture(128);
+
+        // --- Smoke particle pool (sprites) ---
+        const MAX_PARTICLES = 200;
+        const tmpColor = new THREE.Color();
+        const whiteColor = new THREE.Color(0xe8ece8);
+        const greenColor = new THREE.Color(0x10b981);
+        const sparkColor = new THREE.Color(0x8ef0c3);
+
+        const particles = [];
+        for (let i = 0; i < MAX_PARTICLES; i++) {
+          const mat = new THREE.SpriteMaterial({
+            map: smokeTex,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            rotation: 0
+          });
+          const sprite = new THREE.Sprite(mat);
+          sprite.visible = false;
+          scene.add(sprite);
+          particles.push({
+            sprite: sprite,
+            alive: false,
+            age: 0,
+            life: 0,
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            startSize: 0.12,
+            endSize: 0.75,
+            seed: Math.random() * 100,
+            kind: 'smoke'
+          });
+        }
+
+        // --- Ambient haze layer (large faint drifters) ---
+        const HAZE_COUNT = 10;
+        const haze = [];
+        for (let i = 0; i < HAZE_COUNT; i++) {
+          const mat = new THREE.SpriteMaterial({
+            map: smokeTex,
+            color: 0x10b981,
+            transparent: true,
+            opacity: 0.04 + Math.random() * 0.05,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+          });
+          const sprite = new THREE.Sprite(mat);
+          const sx = 1.8 + Math.random() * 1.6;
+          sprite.scale.set(sx, sx, 1);
+          sprite.position.set(
+            -1.5 + Math.random() * 3,
+            -0.6 + Math.random() * 2.2,
+            -0.5 - Math.random() * 0.8
+          );
+          scene.add(sprite);
+          haze.push({
+            sprite,
+            baseY: sprite.position.y,
+            baseX: sprite.position.x,
+            speed: 0.02 + Math.random() * 0.04,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+
+        // --- Pseudo-noise drift (cheap, no external lib) ---
+        function drift(t, seed) {
+          return (
+            Math.sin(t * 0.7 + seed) * 0.5 +
+            Math.sin(t * 1.3 + seed * 2.1) * 0.3 +
+            Math.sin(t * 2.1 + seed * 0.7) * 0.2
+          );
+        }
+
+        // --- Particle spawn helpers ---
+        function spawnSmokeParticle(burst) {
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            if (p.alive) continue;
+            p.alive = true;
+            p.age = 0;
+            p.life = burst ? (0.9 + Math.random() * 0.7) : (1.6 + Math.random() * 1.4);
+            const jitterX = (Math.random() - 0.5) * 0.05;
+            const jitterZ = (Math.random() - 0.5) * 0.05;
+            p.sprite.position.copy(emberWorld);
+            p.sprite.position.x += jitterX;
+            p.sprite.position.z += jitterZ;
+            const upward = burst ? (1.4 + Math.random() * 0.9) : (0.35 + Math.random() * 0.35);
+            p.vx = (Math.random() - 0.5) * (burst ? 0.9 : 0.18);
+            p.vy = upward;
+            p.vz = (Math.random() - 0.5) * (burst ? 0.6 : 0.14);
+            p.startSize = burst ? (0.06 + Math.random() * 0.05) : (0.08 + Math.random() * 0.06);
+            p.endSize = burst ? (0.55 + Math.random() * 0.35) : (0.65 + Math.random() * 0.35);
+            p.seed = Math.random() * 100;
+            p.kind = 'smoke';
+            p.sprite.material.rotation = Math.random() * Math.PI * 2;
+            p.sprite.material.blending = THREE.AdditiveBlending;
+            p.sprite.scale.set(p.startSize, p.startSize, 1);
+            p.sprite.visible = true;
+            return p;
+          }
+          return null;
+        }
+
+        function spawnSpark() {
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            if (p.alive) continue;
+            p.alive = true;
+            p.age = 0;
+            p.life = 0.6 + Math.random() * 0.3;
+            p.sprite.position.copy(emberWorld);
+            p.vx = (Math.random() - 0.5) * 1.4;
+            p.vy = 0.8 + Math.random() * 1.2;
+            p.vz = (Math.random() - 0.5) * 1.0;
+            p.startSize = 0.05;
+            p.endSize = 0.12;
+            p.seed = Math.random() * 100;
+            p.kind = 'spark';
+            p.sprite.material.rotation = 0;
+            p.sprite.material.blending = THREE.AdditiveBlending;
+            p.sprite.material.color.copy(sparkColor);
+            p.sprite.scale.set(p.startSize, p.startSize, 1);
+            p.sprite.visible = true;
+            return p;
+          }
+          return null;
+        }
+
+        // --- Pass animation state ---
+        const passState = {
+          active: false,
+          flareTime: 0,
+          flareDuration: 0.5,
+          spinTime: 0,
+          spinDuration: 1.8,
+          spinFrom: 0,
+          spinTarget: 0
+        };
+
+        window.triggerPassAnimation = function triggerPassAnimation() {
+          if (reducedMotion) return;
+          passState.active = true;
+          passState.flareTime = 0;
+          passState.spinTime = 0;
+          passState.spinFrom = jointGroup.rotation.y;
+          passState.spinTarget = jointGroup.rotation.y + Math.PI;
+          // Burst of smoke
+          for (let i = 0; i < 38; i++) spawnSmokeParticle(true);
+          // Sparks
+          for (let i = 0; i < 14; i++) spawnSpark();
+        };
+
+        // --- Resize handling ---
+        function resize() {
+          const rect = spotlight.getBoundingClientRect();
+          const w = Math.max(1, Math.floor(rect.width));
+          const h = Math.max(1, Math.floor(rect.height));
+          renderer.setSize(w, h, false);
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+        }
+        resize();
+        if (typeof ResizeObserver !== 'undefined') {
+          const ro = new ResizeObserver(resize);
+          ro.observe(spotlight);
+        } else {
+          window.addEventListener('resize', resize);
+        }
+
+        // --- Idle emission cadence ---
+        let smokeAccumulator = 0;
+        const IDLE_EMIT_HZ = 22; // particles per second
+
+        // --- Animation loop ---
+        const clock = new THREE.Clock();
+        let elapsed = 0;
+        const idleSway = { x: 0, z: 0 };
+
+        function tick() {
+          const dt = Math.min(clock.getDelta(), 0.05);
+          elapsed += dt;
+
+          // Update world ember anchor (follows joint transform)
+          emberWorld.copy(emberAnchorLocal).applyMatrix4(jointGroup.matrixWorld);
+          emberLight.position.copy(emberWorld);
+
+          // --- Idle ember breathing ---
+          const pulse =
+            0.85 +
+            Math.sin(elapsed * 2.1) * 0.18 +
+            Math.sin(elapsed * 4.7 + 1.2) * 0.08 +
+            Math.sin(elapsed * 0.9 + 0.4) * 0.05;
+          let emissive = 2.2 * pulse;
+          let pointIntensity = 1.5 * pulse;
+
+          // --- Pass flare ---
+          if (passState.active) {
+            passState.flareTime += dt;
+            const ft = passState.flareTime / passState.flareDuration;
+            if (ft < 1) {
+              // ramp up fast, decay
+              const shape = ft < 0.25 ? (ft / 0.25) : (1 - (ft - 0.25) / 0.75);
+              const boost = Math.max(0, shape) * 2.0; // up to 3x total
+              emissive += 4.4 * boost;
+              pointIntensity += 3.0 * boost;
+            }
+
+            passState.spinTime += dt;
+            const st = Math.min(1, passState.spinTime / passState.spinDuration);
+            // easeOutCubic
+            const eased = 1 - Math.pow(1 - st, 3);
+            jointGroup.rotation.y = passState.spinFrom + (passState.spinTarget - passState.spinFrom) * eased;
+
+            if (st >= 1 && passState.flareTime >= passState.flareDuration) {
+              passState.active = false;
+            }
+          }
+
+          emberMat.emissiveIntensity = emissive;
+          emberLight.intensity = pointIntensity;
+          core.material.opacity = 0.6 + 0.25 * pulse;
+          const coreScale = 0.9 + 0.15 * pulse;
+          core.scale.set(coreScale, 0.45 * coreScale, coreScale);
+
+          // --- Idle joint sway ---
+          idleSway.x = Math.sin(elapsed * 0.6) * 0.015;
+          idleSway.z = Math.PI * 0.28 + Math.sin(elapsed * 0.45 + 0.8) * 0.01;
+          jointGroup.rotation.x = idleSway.x;
+          jointGroup.rotation.z = idleSway.z;
+
+          // --- Idle smoke emission ---
+          if (!reducedMotion) {
+            smokeAccumulator += dt * IDLE_EMIT_HZ;
+            while (smokeAccumulator >= 1) {
+              spawnSmokeParticle(false);
+              smokeAccumulator -= 1;
+            }
+          }
+
+          // --- Update particles ---
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            if (!p.alive) continue;
+            p.age += dt;
+            const t = p.age / p.life;
+            if (t >= 1) {
+              p.alive = false;
+              p.sprite.visible = false;
+              continue;
+            }
+
+            // Organic drift on smoke
+            if (p.kind === 'smoke') {
+              const dX = drift(elapsed + p.seed, p.seed) * 0.4;
+              const dZ = drift(elapsed * 0.8 + p.seed * 1.7, p.seed * 0.5) * 0.3;
+              p.sprite.position.x += (p.vx + dX * 0.15) * dt;
+              p.sprite.position.y += p.vy * dt;
+              p.sprite.position.z += (p.vz + dZ * 0.1) * dt;
+              // Gentle deceleration upward
+              p.vy *= (1 - 0.25 * dt);
+
+              // Size ramp
+              const size = p.startSize + (p.endSize - p.startSize) * t;
+              p.sprite.scale.set(size, size, 1);
+
+              // Color lerp white → green
+              tmpColor.copy(whiteColor).lerp(greenColor, Math.min(1, t * 1.2));
+              p.sprite.material.color.copy(tmpColor);
+
+              // Opacity curve: fade in, hold, fade out
+              let op;
+              if (t < 0.15) op = t / 0.15;
+              else if (t > 0.7) op = (1 - t) / 0.3;
+              else op = 1;
+              p.sprite.material.opacity = op * 0.55;
+
+              // Slow rotation
+              p.sprite.material.rotation += dt * 0.15;
+            } else if (p.kind === 'spark') {
+              // Sparks fly out with slight gravity
+              p.sprite.position.x += p.vx * dt;
+              p.sprite.position.y += p.vy * dt;
+              p.sprite.position.z += p.vz * dt;
+              p.vy -= 1.5 * dt;
+              const size = p.startSize + (p.endSize - p.startSize) * t;
+              p.sprite.scale.set(size, size, 1);
+              p.sprite.material.opacity = (1 - t) * 0.9;
+            }
+          }
+
+          // --- Ambient haze drift ---
+          for (let i = 0; i < haze.length; i++) {
+            const h = haze[i];
+            h.sprite.position.y = h.baseY + Math.sin(elapsed * h.speed + h.phase) * 0.18;
+            h.sprite.position.x = h.baseX + Math.cos(elapsed * h.speed * 0.7 + h.phase) * 0.22;
+          }
+
+          renderer.render(scene, camera);
+          if (!reducedMotion) {
+            requestAnimationFrame(tick);
+          }
+        }
+
+        if (reducedMotion) {
+          // Single static frame
+          emberWorld.copy(emberAnchorLocal).applyMatrix4(jointGroup.matrixWorld);
+          emberLight.position.copy(emberWorld);
+          renderer.render(scene, camera);
+        } else {
+          requestAnimationFrame(tick);
+        }
+
+        // --- Cleanup on page unload ---
+        window.addEventListener('beforeunload', function () {
+          renderer.dispose();
+          smokeTex.dispose();
+          paperGeom.dispose();
+          filterGeom.dispose();
+          ashGeom.dispose();
+          charGeom.dispose();
+          emberGeom.dispose();
+          coreGeom.dispose();
+          paperMat.dispose();
+          filterMat.dispose();
+          ashMat.dispose();
+          charMat.dispose();
+          emberMat.dispose();
+          coreMat.dispose();
+        });
+      })();
+    </script>
+
     <script>
       const holderContentEl = document.getElementById("holder-content");
       const currentTotalEl = document.getElementById("current-total");
@@ -1211,12 +1714,14 @@
 
               setStatus(successText, "ok");
               passFormEl.reset();
+              if (typeof window.triggerPassAnimation === "function") window.triggerPassAnimation();
               await refreshAll();
               return;
 
             } else if (initialRes.ok) {
               setStatus(`Pass accepted for @${payload.handle}`, "ok");
               passFormEl.reset();
+              if (typeof window.triggerPassAnimation === "function") window.triggerPassAnimation();
               await refreshAll();
               return;
             } else {
@@ -1257,6 +1762,7 @@
 
           setStatus(successText, "ok");
           passFormEl.reset();
+          if (typeof window.triggerPassAnimation === "function") window.triggerPassAnimation();
           await refreshAll();
         } catch (error) {
           setStatus(error.message || String(error), "error");
