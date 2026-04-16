@@ -277,6 +277,122 @@
         color: #9ca3af;
         text-decoration: underline;
       }
+
+      /* -- Wallet UI -- */
+      .wallet-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .wallet-btn {
+        width: auto;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+        background: #7c3aed;
+        border-color: #7c3aed;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .wallet-btn:hover {
+        background: #6d28d9;
+        border-color: #6d28d9;
+      }
+
+      .wallet-addr {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.82rem;
+        color: #a5b4fc;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 180px;
+      }
+
+      .wallet-chain {
+        font-size: 0.75rem;
+        color: #9ca3af;
+      }
+
+      .wallet-disconnect {
+        width: auto;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        background: transparent;
+        border-color: #374151;
+        color: #9ca3af;
+        font-weight: 400;
+      }
+
+      .wallet-disconnect:hover {
+        border-color: #ef4444;
+        color: #f87171;
+      }
+
+      /* -- Mobile responsiveness -- */
+      @media (max-width: 768px) {
+        .wrap {
+          padding: 16px 12px;
+        }
+
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        h1 {
+          font-size: 1.4rem;
+        }
+
+        .card {
+          padding: 12px;
+        }
+
+        input, textarea, button {
+          padding: 12px;
+          font-size: 1rem;
+          min-height: 44px;
+        }
+
+        .refresh-btn {
+          min-height: 36px;
+          padding: 6px 14px;
+        }
+
+        .top-line {
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+
+        .list-item {
+          padding: 8px;
+          overflow: hidden;
+        }
+
+        .list-item .mono {
+          font-size: 0.72rem;
+          word-break: break-all;
+        }
+
+        .list-item .row {
+          overflow: hidden;
+        }
+
+        .stat {
+          font-size: 0.9rem;
+        }
+
+        .stack {
+          gap: 6px;
+        }
+
+        .wallet-addr {
+          max-width: 140px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -311,6 +427,9 @@
           <article class="card">
             <h2>Pass the Joint</h2>
             <p class="muted tiny">Each pass costs $0.00402 in USDC via x402 protocol.</p>
+            <div id="wallet-bar" class="wallet-bar">
+              <button id="wallet-connect-btn" class="wallet-btn" type="button">Connect Wallet</button>
+            </div>
             <form id="pass-form">
               <input name="handle" placeholder="your handle (required)" maxlength="50" required />
               <input name="txHash" type="hidden" />
@@ -337,6 +456,7 @@
 
     <footer>Powered by <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a></footer>
 
+    <script src="https://unpkg.com/ethers@6/dist/ethers.min.js"></script>
     <script>
       const holderContentEl = document.getElementById("holder-content");
       const currentTotalEl = document.getElementById("current-total");
@@ -355,6 +475,209 @@
       let previousRanks = new Map();
       let previousTopFeedId = null;
       let autoRefresh = true;
+
+      // -- Wallet state --
+      let walletProvider = null;
+      let walletSigner = null;
+      let walletAddress = null;
+      let walletChainId = null;
+
+      const walletBarEl = document.getElementById("wallet-bar");
+      const walletConnectBtnEl = document.getElementById("wallet-connect-btn");
+
+      const CHAIN_NAMES = {
+        8453: "Base",
+        2741: "Abstract",
+        84532: "Base Sepolia",
+        11124: "Abstract Testnet"
+      };
+
+      const CHAIN_TO_NETWORK = {
+        8453: "eip155:8453",
+        2741: "eip155:2741",
+        84532: "eip155:84532",
+        11124: "eip155:11124"
+      };
+
+      // USDC token metadata per chain for EIP-3009 domain
+      const USDC_META = {
+        8453: {
+          address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          name: "USD Coin",
+          version: "2",
+          decimals: 6
+        },
+        2741: {
+          address: "0x84a71ccd554cc1b02749b35d22f684cc8ec987e1",
+          name: "Bridged USDC (Stargate)",
+          version: "2",
+          decimals: 6
+        }
+      };
+
+      function shortAddress(addr) {
+        if (!addr) return "";
+        return addr.slice(0, 6) + "..." + addr.slice(-4);
+      }
+
+      function renderWalletBar() {
+        if (!walletAddress) {
+          walletBarEl.innerHTML = '<button id="wallet-connect-btn" class="wallet-btn" type="button">Connect Wallet</button>';
+          walletBarEl.querySelector("#wallet-connect-btn").addEventListener("click", connectWallet);
+          return;
+        }
+        const chainName = CHAIN_NAMES[walletChainId] || `Chain ${walletChainId}`;
+        walletBarEl.innerHTML =
+          `<span class="wallet-addr" title="${walletAddress}">${shortAddress(walletAddress)}</span>` +
+          `<span class="wallet-chain">${chainName}</span>` +
+          `<button class="wallet-disconnect" type="button">Disconnect</button>`;
+        walletBarEl.querySelector(".wallet-disconnect").addEventListener("click", disconnectWallet);
+      }
+
+      async function connectWallet() {
+        if (typeof window.ethereum === "undefined") {
+          setStatus("No wallet detected. Install MetaMask or a compatible browser wallet.", "error");
+          return;
+        }
+        try {
+          walletProvider = new ethers.BrowserProvider(window.ethereum);
+          walletSigner = await walletProvider.getSigner();
+          walletAddress = await walletSigner.getAddress();
+          const network = await walletProvider.getNetwork();
+          walletChainId = Number(network.chainId);
+          renderWalletBar();
+          setStatus("Wallet connected. Ready to pass.", "ok");
+
+          // Listen for account/chain changes
+          window.ethereum.on("accountsChanged", handleAccountsChanged);
+          window.ethereum.on("chainChanged", handleChainChanged);
+        } catch (err) {
+          setStatus("Wallet connection failed: " + (err.message || String(err)), "error");
+        }
+      }
+
+      function handleAccountsChanged(accounts) {
+        if (!accounts.length) {
+          disconnectWallet();
+          return;
+        }
+        walletAddress = accounts[0];
+        renderWalletBar();
+      }
+
+      function handleChainChanged() {
+        // Re-init provider on chain switch
+        connectWallet();
+      }
+
+      function disconnectWallet() {
+        walletProvider = null;
+        walletSigner = null;
+        walletAddress = null;
+        walletChainId = null;
+        if (window.ethereum) {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
+          window.ethereum.removeListener("chainChanged", handleChainChanged);
+        }
+        renderWalletBar();
+        setStatus("Ready.", "muted");
+      }
+
+      walletConnectBtnEl.addEventListener("click", connectWallet);
+
+      // -- x402 browser payment flow --
+      function parsePaymentRequired(response) {
+        // The 402 response has a base64-encoded JSON in the payment-required header
+        // and also sends accepts info we need
+        const payReqHeader = response.headers.get("payment-required");
+        if (!payReqHeader) return null;
+        try {
+          return JSON.parse(atob(payReqHeader));
+        } catch {
+          return null;
+        }
+      }
+
+      function findMatchingAccept(accepts, chainId) {
+        // Pick the accept item that matches the user's wallet chain
+        const network = CHAIN_TO_NETWORK[chainId];
+        if (!network || !accepts) return null;
+        const arr = Array.isArray(accepts) ? accepts : [accepts];
+        return arr.find((a) => a.network === network) || null;
+      }
+
+      async function buildPaymentSignature(acceptItem, payTo, signer, signerAddress) {
+        const chainId = Number(acceptItem.network.split(":")[1]);
+        const usdcMeta = USDC_META[chainId];
+        if (!usdcMeta) throw new Error("Unsupported chain for browser payment: " + acceptItem.network);
+
+        // Determine amount from the accept item
+        let amount;
+        if (typeof acceptItem.price === "object" && acceptItem.price.amount) {
+          amount = acceptItem.price.amount;
+        } else if (typeof acceptItem.price === "string") {
+          // Parse "$0.00402" format to micro-units
+          const numeric = parseFloat(acceptItem.price.replace("$", ""));
+          amount = String(Math.round(numeric * 1_000_000));
+        } else {
+          throw new Error("Cannot parse price from accept item");
+        }
+
+        const validAfter = "0";
+        const validBefore = String(Math.floor(Date.now() / 1000) + 900);
+        const nonce = ethers.hexlify(ethers.randomBytes(32));
+
+        // EIP-3009 TransferWithAuthorization typed data
+        const domain = {
+          name: usdcMeta.name,
+          version: usdcMeta.version,
+          chainId: chainId,
+          verifyingContract: usdcMeta.address
+        };
+
+        const types = {
+          TransferWithAuthorization: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "validAfter", type: "uint256" },
+            { name: "validBefore", type: "uint256" },
+            { name: "nonce", type: "bytes32" }
+          ]
+        };
+
+        const message = {
+          from: signerAddress,
+          to: payTo,
+          value: amount,
+          validAfter: validAfter,
+          validBefore: validBefore,
+          nonce: nonce
+        };
+
+        setStatus("Waiting for wallet signature...", "muted");
+        const signature = await signer.signTypedData(domain, types, message);
+
+        // Build the x402 payment payload
+        const paymentPayload = {
+          x402Version: 2,
+          scheme: "exact",
+          network: acceptItem.network,
+          payload: {
+            signature: signature,
+            authorization: {
+              from: signerAddress,
+              to: payTo,
+              value: amount,
+              validAfter: validAfter,
+              validBefore: validBefore,
+              nonce: nonce
+            }
+          }
+        };
+
+        return btoa(JSON.stringify(paymentPayload));
+      }
 
       function shortHash(hash) {
         if (!hash || hash === "pending") return hash || "";
@@ -498,7 +821,6 @@
 
       passFormEl.addEventListener("submit", async (event) => {
         event.preventDefault();
-        setStatus("Submitting pass...", "muted");
         submitBtnEl.disabled = true;
 
         const formData = new FormData(passFormEl);
@@ -509,12 +831,92 @@
         };
 
         try {
+          // If wallet is connected, use the browser payment flow
+          if (walletAddress && walletSigner) {
+            setStatus("Sending request...", "muted");
+
+            // Step 1: POST without payment header to get the 402 response
+            const initialRes = await fetch("/api/joint/pass", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+
+            if (initialRes.status === 402) {
+              // Step 2: Parse the 402 response to get payment requirements
+              const payReq = parsePaymentRequired(initialRes);
+              if (!payReq) throw new Error("Could not parse payment requirements from server.");
+
+              const accepts = payReq.accepts || payReq;
+              const acceptItem = findMatchingAccept(accepts, walletChainId);
+
+              if (!acceptItem) {
+                const supported = (Array.isArray(accepts) ? accepts : [accepts])
+                  .map((a) => CHAIN_NAMES[Number(a.network?.split(":")[1])] || a.network)
+                  .join(", ");
+                throw new Error(
+                  "Your wallet is on " + (CHAIN_NAMES[walletChainId] || "chain " + walletChainId) +
+                  ". Switch to a supported network: " + supported
+                );
+              }
+
+              const payTo = acceptItem.payTo;
+
+              // Step 3: Build and sign the EIP-3009 authorization
+              const paymentSigHeader = await buildPaymentSignature(
+                acceptItem, payTo, walletSigner, walletAddress
+              );
+
+              // Step 4: Re-send with payment signature
+              setStatus("Submitting payment...", "muted");
+              const paidRes = await fetch("/api/joint/pass", {
+                method: "POST",
+                headers: {
+                  "content-type": "application/json",
+                  "payment-signature": paymentSigHeader
+                },
+                body: JSON.stringify(payload)
+              });
+
+              const paidBody = await paidRes.json().catch(() => ({}));
+              if (!paidRes.ok) {
+                throw new Error(paidBody?.error || `Payment failed: HTTP ${paidRes.status}`);
+              }
+
+              const paymentResponse = paidRes.headers.get("payment-response");
+              let successText = `Pass accepted for @${payload.handle}`;
+              if (paymentResponse) {
+                const decoded = decodePaymentHeader(paymentResponse);
+                if (decoded?.transaction) {
+                  const txUrl = explorerUrl(decoded.network, decoded.transaction);
+                  successText = txUrl
+                    ? `Pass accepted! tx: ${shortHash(decoded.transaction)} (${CHAIN_NAMES[walletChainId] || decoded.network})`
+                    : `Pass accepted! tx: ${shortHash(decoded.transaction)}`;
+                }
+              }
+
+              setStatus(successText, "ok");
+              passFormEl.reset();
+              await refreshAll();
+              return;
+
+            } else if (initialRes.ok) {
+              // Server accepted without 402 (unlikely but handle it)
+              setStatus(`Pass accepted for @${payload.handle}`, "ok");
+              passFormEl.reset();
+              await refreshAll();
+              return;
+            } else {
+              const body = await initialRes.json().catch(() => ({}));
+              throw new Error(body?.error || `HTTP ${initialRes.status}`);
+            }
+          }
+
+          // No wallet connected - original flow (will get 402 without browser payment)
           setStatus("Submitting and waiting for payment verification...", "muted");
           const res = await fetch("/api/joint/pass", {
             method: "POST",
-            headers: {
-              "content-type": "application/json"
-            },
+            headers: { "content-type": "application/json" },
             body: JSON.stringify(payload)
           });
 
@@ -523,10 +925,9 @@
 
           if (!res.ok) {
             const errorText = body?.error || `HTTP ${res.status}`;
-            const hint =
-              res.status === 402
-                ? " (x402 payment required, use buyer flow if browser wallet isn't connected)"
-                : "";
+            const hint = res.status === 402
+              ? " -- connect a wallet above to pay from your browser"
+              : "";
             throw new Error(errorText + hint);
           }
 
