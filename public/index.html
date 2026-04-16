@@ -9,148 +9,297 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://ppp.0x402.sh" />
     <meta name="description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
       :root {
         color-scheme: dark;
+        --bg: #0a0a0a;
+        --surface: #111111;
+        --border: #1e293b;
+        --border-hover: #334155;
+        --text: #e2e8f0;
+        --text-muted: #64748b;
+        --text-dim: #475569;
+        --accent: #10b981;
+        --accent-dim: #065f46;
+        --accent-glow: rgba(16, 185, 129, 0.15);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        --sans: 'Inter', system-ui, -apple-system, sans-serif;
       }
 
       * {
         box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
 
       body {
-        margin: 0;
-        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        background: #111827;
-        color: #f9fafb;
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--text);
         min-height: 100vh;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* -- Layout -- */
+      .container {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* -- Hero Section -- */
+      .hero {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 48px;
+        min-height: 90vh;
+        align-items: start;
+        padding-top: 80px;
+        padding-bottom: 64px;
+      }
+
+      .spotlight {
         display: flex;
         flex-direction: column;
+        gap: 32px;
       }
 
-      .wrap {
-        max-width: 980px;
-        margin: 0 auto;
+      .site-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: #fff;
+        line-height: 1.1;
+      }
+
+      .site-subtitle {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        margin-top: 8px;
+        letter-spacing: 0.01em;
+      }
+
+      /* -- Current Holder -- */
+      .holder-block {
         padding: 24px;
-        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface);
       }
 
-      .header {
+      .holder-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      .holder-handle {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent);
+        line-height: 1.2;
+      }
+
+      .holder-stats {
         display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 12px;
+        gap: 24px;
+        margin-top: 16px;
+      }
+
+      .holder-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .holder-stat-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        font-family: var(--mono);
+        color: #fff;
+      }
+
+      .holder-stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .empty-state {
+        color: var(--text-dim);
+        font-size: 0.95rem;
+        padding: 16px 0;
+      }
+
+      /* -- Meta pills (hidden by default, still in DOM for JS) -- */
+      .meta-row {
+        display: none;
+        gap: 8px;
+        align-items: center;
         flex-wrap: wrap;
       }
 
-      h1,
-      h2 {
-        margin: 0;
-      }
-
-      .muted {
-        color: #9ca3af;
-      }
-
-      .tiny {
-        font-size: 0.84rem;
+      .meta-row.visible {
+        display: flex;
       }
 
       .pill {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        border: 1px solid #374151;
+        border: 1px solid var(--border);
         border-radius: 9999px;
         padding: 4px 10px;
-        background: #0f172a;
-        color: #d1d5db;
-        font-size: 0.82rem;
+        background: transparent;
+        color: var(--text-dim);
+        font-size: 0.75rem;
+        font-family: var(--mono);
       }
 
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr;
+      /* -- Wallet + Form -- */
+      .pass-section {
+        display: flex;
+        flex-direction: column;
         gap: 16px;
-        margin-top: 16px;
       }
 
-      @media (min-width: 900px) {
-        .grid {
-          grid-template-columns: 1.2fr 1fr;
-        }
-      }
-
-      .card {
-        border: 1px solid #374151;
-        background: #1f2937;
-        border-radius: 12px;
-        padding: 16px;
-      }
-
-      .stack {
+      .wallet-bar {
         display: flex;
+        align-items: center;
+        gap: 10px;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 10px;
       }
 
-      .card + .card {
-        margin-top: 16px;
+      .wallet-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        font-family: var(--sans);
+        color: #fff;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+        white-space: nowrap;
       }
 
-      .stat {
+      .wallet-btn:hover {
+        background: #0d9668;
+        border-color: #0d9668;
+      }
+
+      .wallet-addr {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        color: var(--accent);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 160px;
+      }
+
+      .wallet-chain {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
+      .wallet-disconnect {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        font-family: var(--sans);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+      }
+
+      .wallet-disconnect:hover {
+        border-color: #ef4444;
+        color: #f87171;
+      }
+
+      .pass-form {
         display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-        border-bottom: 1px solid #374151;
-      }
-
-      .stat:last-child {
-        border-bottom: 0;
-      }
-
-      .label {
-        color: #9ca3af;
-      }
-
-      form {
-        display: grid;
+        flex-direction: column;
         gap: 10px;
       }
 
-      input,
-      textarea,
-      button {
+      .pass-form input,
+      .pass-form textarea {
         width: 100%;
+        padding: 10px 14px;
+        font-size: 0.875rem;
+        font-family: var(--sans);
+        color: var(--text);
+        background: var(--bg);
+        border: 1px solid var(--border);
         border-radius: 8px;
-        border: 1px solid #374151;
-        background: #0f172a;
-        color: #f9fafb;
-        padding: 10px;
-        font: inherit;
+        outline: none;
+        transition: border-color 0.15s;
       }
 
-      textarea {
-        min-height: 72px;
+      .pass-form input:focus,
+      .pass-form textarea:focus {
+        border-color: var(--accent);
+      }
+
+      .pass-form input::placeholder,
+      .pass-form textarea::placeholder {
+        color: var(--text-dim);
+      }
+
+      .pass-form textarea {
+        min-height: 64px;
         resize: vertical;
       }
 
-      button {
-        cursor: pointer;
-        background: #1d4ed8;
-        border-color: #1d4ed8;
+      .submit-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 24px;
+        font-size: 0.875rem;
         font-weight: 600;
+        font-family: var(--sans);
+        color: #fff;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+        width: 100%;
       }
 
-      button:disabled {
-        opacity: 0.7;
+      .submit-btn:hover {
+        background: #0d9668;
+        border-color: #0d9668;
+      }
+
+      .submit-btn:disabled {
+        opacity: 0.5;
         cursor: not-allowed;
       }
 
       .status {
         min-height: 20px;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
+        color: var(--text-muted);
       }
 
       .status.error {
@@ -158,78 +307,19 @@
       }
 
       .status.ok {
-        color: #34d399;
+        color: var(--accent);
       }
 
-      .list {
-        list-style: none;
-        margin: 10px 0 0;
-        padding: 0;
-        display: grid;
-        gap: 8px;
+      .status.muted {
+        color: var(--text-muted);
       }
 
-      .list-item {
-        border: 1px solid #374151;
-        border-radius: 10px;
-        padding: 10px;
-        background: #111827;
-        transition: border-color 0.35s ease, box-shadow 0.35s ease;
-      }
-
-      .list-item.changed {
-        border-color: #10b981;
-        box-shadow: 0 0 0 1px #10b98155 inset;
-      }
-
-      .top-line {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      }
-
-      a.link {
-        color: #93c5fd;
-        text-decoration: none;
-      }
-
-      a.link:hover {
-        text-decoration: underline;
-      }
-
-      .row {
+      /* -- Controls row (auto-refresh + refresh btn) -- */
+      .controls-row {
         display: flex;
         align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      .badge {
-        border: 1px solid #374151;
-        border-radius: 9999px;
-        padding: 2px 8px;
-        font-size: 0.75rem;
-        color: #d1d5db;
-        background: #0f172a;
-      }
-
-      .refresh-btn {
-        width: auto;
-        padding: 4px 12px;
-        font-size: 0.8rem;
-        background: transparent;
-        border-color: #374151;
-        color: #9ca3af;
-        font-weight: 400;
-      }
-
-      .refresh-btn:hover {
-        border-color: #6b7280;
-        color: #d1d5db;
+        gap: 12px;
+        margin-top: 8px;
       }
 
       .auto-toggle {
@@ -237,7 +327,7 @@
         align-items: center;
         gap: 6px;
         font-size: 0.75rem;
-        color: #6b7280;
+        color: var(--text-dim);
         cursor: pointer;
         user-select: none;
       }
@@ -246,7 +336,7 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #10b981;
+        background: var(--accent);
         transition: background 0.2s;
       }
 
@@ -254,209 +344,415 @@
         background: #4b5563;
       }
 
-      .empty-state {
-        text-align: center;
-        padding: 24px 16px;
-        color: #6b7280;
-        font-size: 0.95rem;
-      }
-
-      footer {
-        text-align: center;
-        padding: 16px;
-        font-size: 0.75rem;
-        color: #4b5563;
-      }
-
-      footer a {
-        color: #6b7280;
-        text-decoration: none;
-      }
-
-      footer a:hover {
-        color: #9ca3af;
-        text-decoration: underline;
-      }
-
-      /* -- Wallet UI -- */
-      .wallet-bar {
-        display: flex;
+      .refresh-btn {
+        display: inline-flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 10px;
+        justify-content: center;
+        padding: 4px 12px;
+        font-size: 0.75rem;
+        font-family: var(--sans);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: border-color 0.15s, color 0.15s;
+      }
+
+      .refresh-btn:hover {
+        border-color: var(--border-hover);
+        color: var(--text);
+      }
+
+      /* -- Leaderboard Panel -- */
+      .leaderboard-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding-top: 80px;
+      }
+
+      .panel-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-muted);
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .leaderboard-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .lb-item {
+        display: grid;
+        grid-template-columns: 32px 1fr auto;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border);
+        transition: border-color 0.3s;
+      }
+
+      .lb-item.changed {
+        border-color: var(--accent);
+        box-shadow: 0 1px 0 0 var(--accent-glow);
+      }
+
+      .lb-rank {
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        color: var(--text-dim);
+        text-align: center;
+      }
+
+      .lb-rank.top {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .lb-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .lb-handle {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .lb-meta {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+      }
+
+      .lb-badges {
+        display: flex;
+        gap: 4px;
         flex-wrap: wrap;
       }
 
-      .wallet-btn {
-        width: auto;
-        padding: 8px 14px;
+      .lb-score {
+        font-family: var(--mono);
         font-size: 0.85rem;
-        background: #7c3aed;
-        border-color: #7c3aed;
-        font-weight: 600;
+        color: var(--text-muted);
         white-space: nowrap;
       }
 
-      .wallet-btn:hover {
-        background: #6d28d9;
-        border-color: #6d28d9;
-      }
-
-      .wallet-addr {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 0.82rem;
-        color: #a5b4fc;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 180px;
-      }
-
-      .wallet-chain {
-        font-size: 0.75rem;
-        color: #9ca3af;
-      }
-
-      .wallet-disconnect {
-        width: auto;
-        padding: 4px 10px;
-        font-size: 0.75rem;
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        font-size: 0.65rem;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        color: var(--text-dim);
         background: transparent;
-        border-color: #374151;
-        color: #9ca3af;
-        font-weight: 400;
+        white-space: nowrap;
       }
 
-      .wallet-disconnect:hover {
-        border-color: #ef4444;
-        color: #f87171;
+      /* -- Feed Section -- */
+      .feed-section {
+        padding: 64px 0;
+        border-top: 1px solid var(--border);
       }
 
-      /* -- Mobile responsiveness -- */
+      .section-heading {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-muted);
+        margin-bottom: 24px;
+      }
+
+      .feed-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .feed-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+        transition: border-color 0.3s;
+      }
+
+      .feed-item.changed {
+        border-color: var(--accent);
+      }
+
+      .feed-handle {
+        font-weight: 600;
+        font-size: 0.875rem;
+        color: #fff;
+      }
+
+      .feed-detail {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+
+      .feed-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 2px;
+      }
+
+      .feed-time {
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        white-space: nowrap;
+      }
+
+      .feed-tx {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+      }
+
+      .mono {
+        font-family: var(--mono);
+      }
+
+      a.link {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      a.link:hover {
+        text-decoration: underline;
+      }
+
+      /* -- How It Works -- */
+      .how-section {
+        padding: 64px 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 32px;
+        margin-top: 32px;
+      }
+
+      .step {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .step-number {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--accent);
+        border-radius: 50%;
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--accent);
+      }
+
+      .step-text {
+        font-size: 0.9rem;
+        color: var(--text);
+        line-height: 1.5;
+      }
+
+      /* -- Footer -- */
+      footer {
+        text-align: center;
+        padding: 32px 24px;
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        border-top: 1px solid var(--border);
+      }
+
+      footer a {
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: color 0.15s;
+      }
+
+      footer a:hover {
+        color: var(--accent);
+      }
+
+      /* -- Responsive -- */
       @media (max-width: 768px) {
-        .wrap {
-          padding: 16px 12px;
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 40px;
+          padding-top: 48px;
+          padding-bottom: 48px;
+          min-height: auto;
         }
 
-        .header {
-          flex-direction: column;
-          align-items: flex-start;
+        .leaderboard-panel {
+          padding-top: 0;
         }
 
-        h1 {
-          font-size: 1.4rem;
+        .site-title {
+          font-size: 1.75rem;
         }
 
-        .card {
-          padding: 12px;
+        .holder-handle {
+          font-size: 1.5rem;
         }
 
-        input, textarea, button {
+        .holder-stats {
+          gap: 16px;
+        }
+
+        .steps {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+
+        .container {
+          padding: 0 16px;
+        }
+
+        .pass-form input,
+        .pass-form textarea,
+        .submit-btn,
+        .wallet-btn {
           padding: 12px;
           font-size: 1rem;
           min-height: 44px;
         }
 
-        .refresh-btn {
-          min-height: 36px;
-          padding: 6px 14px;
+        .wallet-addr {
+          max-width: 130px;
         }
 
-        .top-line {
-          flex-wrap: wrap;
+        .feed-item {
+          grid-template-columns: 1fr;
           gap: 4px;
         }
 
-        .list-item {
-          padding: 8px;
-          overflow: hidden;
+        .feed-right {
+          align-items: flex-start;
+          flex-direction: row;
+          gap: 8px;
         }
 
-        .list-item .mono {
-          font-size: 0.72rem;
-          word-break: break-all;
-        }
-
-        .list-item .row {
-          overflow: hidden;
-        }
-
-        .stat {
-          font-size: 0.9rem;
-        }
-
-        .stack {
-          gap: 6px;
-        }
-
-        .wallet-addr {
-          max-width: 140px;
+        .lb-item {
+          grid-template-columns: 28px 1fr auto;
+          gap: 8px;
+          padding: 10px 0;
         }
       }
     </style>
   </head>
   <body>
-    <main class="wrap">
-      <header class="header">
-        <div>
-          <h1>🌿 Puff Puff Pass</h1>
-          <p class="muted">x402-gated virtual joint leaderboard</p>
-        </div>
-        <div class="row">
-          <span id="auto-toggle" class="auto-toggle">
-            <span id="auto-dot" class="dot"></span>
-            <span id="auto-label">auto</span>
-          </span>
-          <button id="refresh-btn" class="refresh-btn" type="button">Refresh</button>
-        </div>
-      </header>
 
-      <section class="grid">
-        <div>
-          <article class="card">
-            <h2>Current Holder</h2>
+    <!-- Hero: Spotlight + Leaderboard -->
+    <div class="container">
+      <section class="hero">
+
+        <!-- Left: Spotlight -->
+        <div class="spotlight">
+          <div>
+            <h1 class="site-title">Puff Puff Pass</h1>
+            <p class="site-subtitle">x402-gated virtual joint leaderboard</p>
+          </div>
+
+          <!-- Current Holder -->
+          <div class="holder-block">
+            <div class="holder-label">Current Holder</div>
             <div id="holder-content">
-              <div class="empty-state">No one's holding the joint yet. Be the first to puff.</div>
+              <div class="empty-state">No one is holding the joint yet. Be the first.</div>
             </div>
-            <div class="stack">
-              <span id="network-pill" class="pill" style="display:none">Connecting...</span>
-              <span id="updated-pill" class="pill" style="display:none">Updated: —</span>
-            </div>
-          </article>
+          </div>
 
-          <article class="card">
-            <h2>Pass the Joint</h2>
-            <p class="muted tiny">Each pass costs $0.00402 in USDC via x402 protocol.</p>
+          <!-- Meta pills (hidden, kept for JS) -->
+          <div class="meta-row" id="meta-row">
+            <span id="network-pill" class="pill" style="display:none">Connecting...</span>
+            <span id="updated-pill" class="pill" style="display:none">Updated: --</span>
+          </div>
+
+          <!-- Wallet + Form -->
+          <div class="pass-section">
             <div id="wallet-bar" class="wallet-bar">
               <button id="wallet-connect-btn" class="wallet-btn" type="button">Connect Wallet</button>
             </div>
-            <form id="pass-form">
+
+            <form id="pass-form" class="pass-form">
               <input name="handle" placeholder="your handle (required)" maxlength="50" required />
               <input name="txHash" type="hidden" />
               <textarea name="message" placeholder="say something (optional)"></textarea>
-              <button id="submit-btn" type="submit">🚬 Pass It</button>
+              <button id="submit-btn" class="submit-btn" type="submit">Pass It</button>
             </form>
             <p id="pass-status" class="status muted">Ready.</p>
-          </article>
+
+            <div class="controls-row">
+              <span id="auto-toggle" class="auto-toggle">
+                <span id="auto-dot" class="dot"></span>
+                <span id="auto-label">auto</span>
+              </span>
+              <button id="refresh-btn" class="refresh-btn" type="button">Refresh</button>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <article class="card">
-            <h2>Leaderboard</h2>
-            <ul id="leaderboard-list" class="list"></ul>
-          </article>
+        <!-- Right: Leaderboard -->
+        <div class="leaderboard-panel">
+          <div class="panel-heading">Leaderboard</div>
+          <ul id="leaderboard-list" class="leaderboard-list"></ul>
+        </div>
 
-          <article class="card">
-            <h2>Feed</h2>
-            <ul id="feed-list" class="list"></ul>
-          </article>
+      </section>
+    </div>
+
+    <!-- Feed -->
+    <div class="container">
+      <section class="feed-section">
+        <div class="section-heading">Recent Activity</div>
+        <ul id="feed-list" class="feed-list"></ul>
+      </section>
+    </div>
+
+    <!-- How It Works -->
+    <div class="container">
+      <section class="how-section">
+        <div class="section-heading">How It Works</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-text">Connect your wallet</div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-text">Enter your handle and pass the joint ($0.00402 USDC)</div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-text">Climb the leaderboard</div>
+          </div>
         </div>
       </section>
-    </main>
+    </div>
 
     <footer>Powered by <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a></footer>
 
-    <script src="https://unpkg.com/ethers@6/dist/ethers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
     <script>
       const holderContentEl = document.getElementById("holder-content");
       const currentTotalEl = document.getElementById("current-total");
@@ -587,8 +883,6 @@
 
       // -- x402 browser payment flow --
       function parsePaymentRequired(response) {
-        // The 402 response has a base64-encoded JSON in the payment-required header
-        // and also sends accepts info we need
         const payReqHeader = response.headers.get("payment-required");
         if (!payReqHeader) return null;
         try {
@@ -599,7 +893,6 @@
       }
 
       function findMatchingAccept(accepts, chainId) {
-        // Pick the accept item that matches the user's wallet chain
         const network = CHAIN_TO_NETWORK[chainId];
         if (!network || !accepts) return null;
         const arr = Array.isArray(accepts) ? accepts : [accepts];
@@ -611,12 +904,10 @@
         const usdcMeta = USDC_META[chainId];
         if (!usdcMeta) throw new Error("Unsupported chain for browser payment: " + acceptItem.network);
 
-        // Determine amount from the accept item
         let amount;
         if (typeof acceptItem.price === "object" && acceptItem.price.amount) {
           amount = acceptItem.price.amount;
         } else if (typeof acceptItem.price === "string") {
-          // Parse "$0.00402" format to micro-units
           const numeric = parseFloat(acceptItem.price.replace("$", ""));
           amount = String(Math.round(numeric * 1_000_000));
         } else {
@@ -627,7 +918,6 @@
         const validBefore = String(Math.floor(Date.now() / 1000) + 900);
         const nonce = ethers.hexlify(ethers.randomBytes(32));
 
-        // EIP-3009 TransferWithAuthorization typed data
         const domain = {
           name: usdcMeta.name,
           version: usdcMeta.version,
@@ -658,7 +948,6 @@
         setStatus("Waiting for wallet signature...", "muted");
         const signature = await signer.signTypedData(domain, types, message);
 
-        // Build the x402 payment payload
         const paymentPayload = {
           x402Version: 2,
           scheme: "exact",
@@ -681,7 +970,7 @@
 
       function shortHash(hash) {
         if (!hash || hash === "pending") return hash || "";
-        return `${hash.slice(0, 10)}…${hash.slice(-6)}`;
+        return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
       }
 
       function explorerUrl(network, txHash) {
@@ -710,20 +999,28 @@
 
       function renderHolder(current) {
         if (!current.currentHolder) {
-          holderContentEl.innerHTML = '<div class="empty-state">No one\'s holding the joint yet. Be the first to puff.</div>';
+          holderContentEl.innerHTML = '<div class="empty-state">No one is holding the joint yet. Be the first.</div>';
           return;
         }
         holderContentEl.innerHTML = `
-          <div class="stat"><span class="label">Handle</span><strong>@${current.currentHolder}</strong></div>
-          <div class="stat"><span class="label">Total Passes</span><strong>${current.totalPasses ?? 0}</strong></div>
-          <div class="stat"><span class="label">Pass Fee</span><strong>$${current.passFeeUsd}</strong></div>
+          <div class="holder-handle">@${current.currentHolder}</div>
+          <div class="holder-stats">
+            <div class="holder-stat">
+              <span class="holder-stat-value">${current.totalPasses ?? 0}</span>
+              <span class="holder-stat-label">Total Passes</span>
+            </div>
+            <div class="holder-stat">
+              <span class="holder-stat-value">$${current.passFeeUsd}</span>
+              <span class="holder-stat-label">Pass Fee</span>
+            </div>
+          </div>
         `;
       }
 
       function renderLeaderboard(items) {
         leaderboardListEl.innerHTML = "";
         if (!items.length) {
-          leaderboardListEl.innerHTML = '<li class="list-item muted">No one on the board yet. Hit that pass button.</li>';
+          leaderboardListEl.innerHTML = '<li class="empty-state">No one on the board yet.</li>';
           return;
         }
 
@@ -731,7 +1028,7 @@
 
         for (const row of items.slice(0, 10)) {
           const li = document.createElement("li");
-          li.className = "list-item";
+          li.className = "lb-item";
           nextRanks.set(row.handle, row.rank);
           if (previousRanks.has(row.handle) && previousRanks.get(row.handle) !== row.rank) {
             li.classList.add("changed");
@@ -741,10 +1038,15 @@
             ? row.badges.slice(0, 3).map((badge) => `<span class="badge">${badge}</span>`).join("")
             : "";
 
+          const rankClass = row.rank <= 3 ? "lb-rank top" : "lb-rank";
+
           li.innerHTML = `
-            <div class="top-line"><strong>#${row.rank} @${row.handle}</strong><span>${row.score} pts</span></div>
-            <div class="muted">passes: ${row.totalPasses} · streak: ${row.longestStreak} · first takes: ${row.firstTakes}</div>
-            <div class="stack">${badges || '<span class="muted tiny">No badges yet</span>'}</div>
+            <div class="${rankClass}">${row.rank}</div>
+            <div class="lb-info">
+              <div class="lb-handle">@${row.handle}</div>
+              <div class="lb-meta">${row.totalPasses} passes ${badges ? '· ' + badges : ''}</div>
+            </div>
+            <div class="lb-score">${row.score} pts</div>
           `;
           leaderboardListEl.appendChild(li);
         }
@@ -755,13 +1057,13 @@
       function renderFeed(items, network) {
         feedListEl.innerHTML = "";
         if (!items.length) {
-          feedListEl.innerHTML = '<li class="list-item muted">It\'s quiet in here. Make some noise.</li>';
+          feedListEl.innerHTML = '<li class="empty-state">No activity yet.</li>';
           return;
         }
 
         for (const item of items.slice(0, 8)) {
           const li = document.createElement("li");
-          li.className = "list-item";
+          li.className = "feed-item";
           if (previousTopFeedId && item.id === items[0]?.id && item.id !== previousTopFeedId) {
             li.classList.add("changed");
           }
@@ -769,16 +1071,25 @@
           const txUrl = explorerUrl(network, item.txHash);
           const txHtml = item.txHash
             ? item.txHash === "pending"
-              ? '<span class="muted">tx pending...</span>'
+              ? '<span class="feed-tx" style="color:var(--text-dim)">tx pending</span>'
               : txUrl
-                ? `<a class="link mono" href="${txUrl}" target="_blank" rel="noopener noreferrer">${shortHash(item.txHash)}</a>`
-                : `<span class="mono">${shortHash(item.txHash)}</span>`
-            : '<span class="muted">no tx</span>';
+                ? `<a class="link feed-tx" href="${txUrl}" target="_blank" rel="noopener noreferrer">${shortHash(item.txHash)}</a>`
+                : `<span class="feed-tx mono" style="color:var(--text-dim)">${shortHash(item.txHash)}</span>`
+            : '';
+
+          const timeStr = new Date(item.createdAt).toLocaleString(undefined, {
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          });
 
           li.innerHTML = `
-            <div class="top-line"><strong>@${item.handle}</strong><span class="muted">${new Date(item.createdAt).toLocaleString()}</span></div>
-            <div class="muted">${item.gainLine || "pass logged"}</div>
-            <div class="row"><span class="mono muted">${item.status}</span>·${txHtml}</div>
+            <div>
+              <div class="feed-handle">@${item.handle}</div>
+              <div class="feed-detail">${item.gainLine || item.status || "pass logged"}</div>
+            </div>
+            <div class="feed-right">
+              <span class="feed-time">${timeStr}</span>
+              ${txHtml}
+            </div>
           `;
           feedListEl.appendChild(li);
         }
@@ -805,15 +1116,18 @@
 
         renderHolder(current);
 
+        const metaRow = document.getElementById("meta-row");
         if (activeNetwork) {
           networkPillEl.textContent = `Network: ${activeNetwork}`;
           networkPillEl.style.display = "";
+          metaRow.classList.add("visible");
         } else {
           networkPillEl.style.display = "none";
         }
 
         updatedPillEl.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
         updatedPillEl.style.display = "";
+        metaRow.classList.add("visible");
 
         renderLeaderboard(leaderboard.items || []);
         renderFeed(feed.items || [], health?.x402?.networks?.[0]);
@@ -901,7 +1215,6 @@
               return;
 
             } else if (initialRes.ok) {
-              // Server accepted without 402 (unlikely but handle it)
               setStatus(`Pass accepted for @${payload.handle}`, "ok");
               passFormEl.reset();
               await refreshAll();
@@ -912,7 +1225,7 @@
             }
           }
 
-          // No wallet connected - original flow (will get 402 without browser payment)
+          // No wallet connected - original flow
           setStatus("Submitting and waiting for payment verification...", "muted");
           const res = await fetch("/api/joint/pass", {
             method: "POST",
@@ -937,8 +1250,8 @@
             if (decoded?.transaction) {
               const txUrl = explorerUrl(decoded.network, decoded.transaction);
               successText = txUrl
-                ? `Pass accepted for @${payload.handle} · tx: ${shortHash(decoded.transaction)} (${decoded.network})`
-                : `Pass accepted for @${payload.handle} · tx: ${shortHash(decoded.transaction)}`;
+                ? `Pass accepted for @${payload.handle} -- tx: ${shortHash(decoded.transaction)} (${decoded.network})`
+                : `Pass accepted for @${payload.handle} -- tx: ${shortHash(decoded.transaction)}`;
             }
           }
 
