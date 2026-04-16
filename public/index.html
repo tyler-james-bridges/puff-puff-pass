@@ -68,6 +68,7 @@
         gap: 32px;
         position: relative;
         isolation: isolate;
+        min-height: 560px;
       }
 
       #joint-canvas {
@@ -625,6 +626,10 @@
           min-height: auto;
         }
 
+        .spotlight {
+          min-height: 600px;
+        }
+
         .leaderboard-panel {
           padding-top: 0;
         }
@@ -799,111 +804,115 @@
 
         const scene = new THREE.Scene();
 
-        const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-        // Framing: joint sits lower-right, smoke rises upward
-        camera.position.set(0.1, 0.7, 3.6);
-        camera.lookAt(0.35, 0.1, 0);
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-        // --- Joint model ---
+        const camera = new THREE.PerspectiveCamera(isMobile ? 52 : 46, 1, 0.1, 100);
+        // Centered framing; joint fills most of the canvas
+        camera.position.set(0.0, 0.35, 3.2);
+        camera.lookAt(0.0, 0.05, 0);
+
+        // --- Joint model (proper proportions: ~7:1 length:diameter) ---
         const jointGroup = new THREE.Group();
 
-        // Paper body — slight taper (wider at ember end), subtle wrinkles
-        const paperGeom = new THREE.CylinderGeometry(0.068, 0.052, 1.55, 40, 10, false);
+        // Paper body — tapered, with subtle wrinkles
+        const paperGeom = new THREE.CylinderGeometry(0.14, 0.11, 1.05, 44, 12, false);
         const pos = paperGeom.attributes.position;
         for (let i = 0; i < pos.count; i++) {
           const x = pos.getX(i);
           const y = pos.getY(i);
           const z = pos.getZ(i);
           const radial = Math.hypot(x, z) || 1;
-          // Band-shaped ripple pattern to mimic rolling paper
           const wrinkle =
-            Math.sin(y * 38 + x * 6) * 0.0018 +
-            Math.sin(y * 72 + z * 4) * 0.0012;
+            Math.sin(y * 26 + x * 4) * 0.0035 +
+            Math.sin(y * 58 + z * 3) * 0.0022;
           pos.setXYZ(i, x + (x / radial) * wrinkle, y, z + (z / radial) * wrinkle);
         }
         paperGeom.computeVertexNormals();
         const paperMat = new THREE.MeshStandardMaterial({
-          color: 0xe9dcc0,
-          roughness: 0.88,
+          color: 0xd6c8a8,
+          roughness: 0.95,
           metalness: 0.0
         });
         const paper = new THREE.Mesh(paperGeom, paperMat);
         jointGroup.add(paper);
 
-        // Filter end (rolled tip, slightly darker beige)
-        const filterGeom = new THREE.CylinderGeometry(0.053, 0.05, 0.22, 32, 1, false);
+        // Filter end (rolled tip, darker beige)
+        const filterGeom = new THREE.CylinderGeometry(0.112, 0.105, 0.22, 32, 1, false);
         const filterMat = new THREE.MeshStandardMaterial({
-          color: 0xbd9a66,
-          roughness: 0.92
+          color: 0xa07a4a,
+          roughness: 0.95
         });
         const filter = new THREE.Mesh(filterGeom, filterMat);
-        filter.position.y = -0.775 - 0.11;
+        filter.position.y = -0.635;
         jointGroup.add(filter);
 
         // Ash band near ember
-        const ashGeom = new THREE.CylinderGeometry(0.078, 0.07, 0.22, 36, 1, false);
+        const ashGeom = new THREE.CylinderGeometry(0.155, 0.143, 0.18, 36, 1, false);
         const ashMat = new THREE.MeshStandardMaterial({
-          color: 0x524c46,
+          color: 0x4a443e,
           roughness: 1.0
         });
         const ash = new THREE.Mesh(ashGeom, ashMat);
-        ash.position.y = 0.66;
+        ash.position.y = 0.44;
         jointGroup.add(ash);
 
         // Char ring (black burn line between paper and ember)
-        const charGeom = new THREE.CylinderGeometry(0.074, 0.078, 0.035, 32, 1, false);
+        const charGeom = new THREE.CylinderGeometry(0.148, 0.155, 0.04, 32, 1, false);
         const charMat = new THREE.MeshStandardMaterial({
           color: 0x0a0807,
           roughness: 1.0
         });
         const char = new THREE.Mesh(charGeom, charMat);
-        char.position.y = 0.78;
+        char.position.y = 0.55;
         jointGroup.add(char);
 
         // Ember — emissive disc/dome at tip
-        const emberGeom = new THREE.SphereGeometry(0.082, 28, 18);
+        const emberGeom = new THREE.SphereGeometry(0.168, 28, 18);
         const emberMat = new THREE.MeshStandardMaterial({
-          color: 0x1a0500,
-          emissive: 0xff5a22,
-          emissiveIntensity: 2.2,
+          color: 0x200800,
+          emissive: 0xff5020,
+          emissiveIntensity: 2.6,
           roughness: 1.0,
           metalness: 0.0
         });
         const ember = new THREE.Mesh(emberGeom, emberMat);
-        ember.position.y = 0.82;
+        ember.position.y = 0.6;
         ember.scale.set(1, 0.52, 1);
         jointGroup.add(ember);
 
         // Inner hot core (smaller, brighter)
-        const coreGeom = new THREE.SphereGeometry(0.045, 20, 14);
+        const coreGeom = new THREE.SphereGeometry(0.09, 20, 14);
         const coreMat = new THREE.MeshBasicMaterial({
-          color: 0xffd07a,
+          color: 0xffd890,
           transparent: true,
-          opacity: 0.85
+          opacity: 0.92
         });
         const core = new THREE.Mesh(coreGeom, coreMat);
-        core.position.y = 0.84;
+        core.position.y = 0.63;
         core.scale.set(1, 0.45, 1);
         jointGroup.add(core);
 
-        // Tilt + position in lower-right
-        jointGroup.rotation.z = Math.PI * 0.28;
-        jointGroup.position.set(0.55, -0.25, 0);
+        // Tilt + position — slightly off-center so the ember sits upper-left
+        jointGroup.rotation.z = Math.PI * 0.34;
+        jointGroup.position.set(0.25, -0.05, 0);
         scene.add(jointGroup);
 
-        // World-space ember anchor for particle emission / point light
-        const emberAnchorLocal = new THREE.Vector3(0, 0.85, 0);
+        // World-space ember anchor
+        const emberAnchorLocal = new THREE.Vector3(0, 0.63, 0);
         const emberWorld = new THREE.Vector3();
 
         // --- Lights ---
-        scene.add(new THREE.AmbientLight(0x10b981, 0.18));
+        scene.add(new THREE.AmbientLight(0x10b981, 0.22));
 
-        const keyLight = new THREE.DirectionalLight(0x9fb8ff, 0.55);
+        // Cool rim from upper-left (dim so paper reads moody, not lightsaber)
+        const keyLight = new THREE.DirectionalLight(0x7a8aa8, 0.28);
         keyLight.position.set(-3, 4, 2.5);
         scene.add(keyLight);
 
-        const emberLight = new THREE.PointLight(0xff6b35, 1.6, 5.5, 2.0);
-        scene.add(emberLight);
+        // Warm fill from lower-right to bring out paper texture
+        const fillLight = new THREE.DirectionalLight(0xffa060, 0.2);
+        fillLight.position.set(2, -1, 1.5);
+        scene.add(fillLight);
 
         // --- Particle sprite texture (procedural soft circle) ---
         function makeSoftCircleTexture(size) {
@@ -926,8 +935,33 @@
         }
         const smokeTex = makeSoftCircleTexture(128);
 
+        // --- Ember halo (always-on additive glow behind ember) ---
+        const haloMat = new THREE.SpriteMaterial({
+          map: smokeTex,
+          color: 0xff7a2e,
+          transparent: true,
+          opacity: 0.85,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const haloSprite = new THREE.Sprite(haloMat);
+        haloSprite.scale.set(1.1, 1.1, 1);
+        scene.add(haloSprite);
+
+        const haloOuterMat = new THREE.SpriteMaterial({
+          map: smokeTex,
+          color: 0xff4a10,
+          transparent: true,
+          opacity: 0.35,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        const haloOuter = new THREE.Sprite(haloOuterMat);
+        haloOuter.scale.set(2.4, 2.4, 1);
+        scene.add(haloOuter);
+
         // --- Smoke particle pool (sprites) ---
-        const MAX_PARTICLES = 200;
+        const MAX_PARTICLES = isMobile ? 90 : 200;
         const tmpColor = new THREE.Color();
         const whiteColor = new THREE.Color(0xe8ece8);
         const greenColor = new THREE.Color(0x10b981);
@@ -1014,12 +1048,12 @@
             p.sprite.position.copy(emberWorld);
             p.sprite.position.x += jitterX;
             p.sprite.position.z += jitterZ;
-            const upward = burst ? (1.4 + Math.random() * 0.9) : (0.35 + Math.random() * 0.35);
-            p.vx = (Math.random() - 0.5) * (burst ? 0.9 : 0.18);
+            const upward = burst ? (1.6 + Math.random() * 1.0) : (0.5 + Math.random() * 0.45);
+            p.vx = (Math.random() - 0.5) * (burst ? 1.1 : 0.22);
             p.vy = upward;
-            p.vz = (Math.random() - 0.5) * (burst ? 0.6 : 0.14);
-            p.startSize = burst ? (0.06 + Math.random() * 0.05) : (0.08 + Math.random() * 0.06);
-            p.endSize = burst ? (0.55 + Math.random() * 0.35) : (0.65 + Math.random() * 0.35);
+            p.vz = (Math.random() - 0.5) * (burst ? 0.7 : 0.16);
+            p.startSize = burst ? (0.12 + Math.random() * 0.08) : (0.18 + Math.random() * 0.1);
+            p.endSize = burst ? (1.1 + Math.random() * 0.6) : (1.3 + Math.random() * 0.7);
             p.seed = Math.random() * 100;
             p.kind = 'smoke';
             p.sprite.material.rotation = Math.random() * Math.PI * 2;
@@ -1099,7 +1133,7 @@
 
         // --- Idle emission cadence ---
         let smokeAccumulator = 0;
-        const IDLE_EMIT_HZ = 22; // particles per second
+        const IDLE_EMIT_HZ = isMobile ? 18 : 34; // particles per second
 
         // --- Animation loop ---
         const clock = new THREE.Clock();
@@ -1112,7 +1146,8 @@
 
           // Update world ember anchor (follows joint transform)
           emberWorld.copy(emberAnchorLocal).applyMatrix4(jointGroup.matrixWorld);
-          emberLight.position.copy(emberWorld);
+          haloSprite.position.copy(emberWorld);
+          haloOuter.position.copy(emberWorld);
 
           // --- Idle ember breathing ---
           const pulse =
@@ -1120,24 +1155,22 @@
             Math.sin(elapsed * 2.1) * 0.18 +
             Math.sin(elapsed * 4.7 + 1.2) * 0.08 +
             Math.sin(elapsed * 0.9 + 0.4) * 0.05;
-          let emissive = 2.2 * pulse;
-          let pointIntensity = 1.5 * pulse;
+          let emissive = 2.6 * pulse;
+          let haloIntensity = pulse;
 
           // --- Pass flare ---
           if (passState.active) {
             passState.flareTime += dt;
             const ft = passState.flareTime / passState.flareDuration;
             if (ft < 1) {
-              // ramp up fast, decay
               const shape = ft < 0.25 ? (ft / 0.25) : (1 - (ft - 0.25) / 0.75);
-              const boost = Math.max(0, shape) * 2.0; // up to 3x total
-              emissive += 4.4 * boost;
-              pointIntensity += 3.0 * boost;
+              const boost = Math.max(0, shape) * 2.0;
+              emissive += 5.5 * boost;
+              haloIntensity += 2.0 * boost;
             }
 
             passState.spinTime += dt;
             const st = Math.min(1, passState.spinTime / passState.spinDuration);
-            // easeOutCubic
             const eased = 1 - Math.pow(1 - st, 3);
             jointGroup.rotation.y = passState.spinFrom + (passState.spinTarget - passState.spinFrom) * eased;
 
@@ -1147,14 +1180,18 @@
           }
 
           emberMat.emissiveIntensity = emissive;
-          emberLight.intensity = pointIntensity;
-          core.material.opacity = 0.6 + 0.25 * pulse;
+          haloMat.opacity = 0.7 * haloIntensity;
+          haloOuterMat.opacity = 0.32 * haloIntensity;
+          const haloBreath = 1 + 0.08 * Math.sin(elapsed * 3.2);
+          haloSprite.scale.set(1.1 * haloBreath, 1.1 * haloBreath, 1);
+          haloOuter.scale.set(2.4 * haloBreath, 2.4 * haloBreath, 1);
+          core.material.opacity = 0.7 + 0.25 * pulse;
           const coreScale = 0.9 + 0.15 * pulse;
           core.scale.set(coreScale, 0.45 * coreScale, coreScale);
 
           // --- Idle joint sway ---
           idleSway.x = Math.sin(elapsed * 0.6) * 0.015;
-          idleSway.z = Math.PI * 0.28 + Math.sin(elapsed * 0.45 + 0.8) * 0.01;
+          idleSway.z = Math.PI * 0.34 + Math.sin(elapsed * 0.45 + 0.8) * 0.012;
           jointGroup.rotation.x = idleSway.x;
           jointGroup.rotation.z = idleSway.z;
 
@@ -1202,7 +1239,7 @@
               if (t < 0.15) op = t / 0.15;
               else if (t > 0.7) op = (1 - t) / 0.3;
               else op = 1;
-              p.sprite.material.opacity = op * 0.55;
+              p.sprite.material.opacity = op * 0.9;
 
               // Slow rotation
               p.sprite.material.rotation += dt * 0.15;
@@ -1234,7 +1271,8 @@
         if (reducedMotion) {
           // Single static frame
           emberWorld.copy(emberAnchorLocal).applyMatrix4(jointGroup.matrixWorld);
-          emberLight.position.copy(emberWorld);
+          haloSprite.position.copy(emberWorld);
+          haloOuter.position.copy(emberWorld);
           renderer.render(scene, camera);
         } else {
           requestAnimationFrame(tick);
