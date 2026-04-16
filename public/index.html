@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Puff Puff Pass</title>
+    <meta property="og:title" content="Puff Puff Pass" />
+    <meta property="og:description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ppp.0x402.sh" />
+    <meta name="description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
     <style>
       :root {
         color-scheme: dark;
@@ -18,12 +23,16 @@
         font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         background: #111827;
         color: #f9fafb;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
       }
 
       .wrap {
         max-width: 980px;
         margin: 0 auto;
         padding: 24px;
+        flex: 1;
       }
 
       .header {
@@ -207,18 +216,82 @@
         color: #d1d5db;
         background: #0f172a;
       }
+
+      .refresh-btn {
+        width: auto;
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        background: transparent;
+        border-color: #374151;
+        color: #9ca3af;
+        font-weight: 400;
+      }
+
+      .refresh-btn:hover {
+        border-color: #6b7280;
+        color: #d1d5db;
+      }
+
+      .auto-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.75rem;
+        color: #6b7280;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .auto-toggle .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+        transition: background 0.2s;
+      }
+
+      .auto-toggle .dot.off {
+        background: #4b5563;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 24px 16px;
+        color: #6b7280;
+        font-size: 0.95rem;
+      }
+
+      footer {
+        text-align: center;
+        padding: 16px;
+        font-size: 0.75rem;
+        color: #4b5563;
+      }
+
+      footer a {
+        color: #6b7280;
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: #9ca3af;
+        text-decoration: underline;
+      }
     </style>
   </head>
   <body>
     <main class="wrap">
       <header class="header">
         <div>
-          <h1>Puff Puff Pass</h1>
+          <h1>🌿 Puff Puff Pass</h1>
           <p class="muted">x402-gated virtual joint leaderboard</p>
         </div>
         <div class="row">
-          <span id="auto-refresh-pill" class="pill">Auto refresh: on</span>
-          <button id="refresh-btn" type="button">Refresh</button>
+          <span id="auto-toggle" class="auto-toggle">
+            <span id="auto-dot" class="dot"></span>
+            <span id="auto-label">auto</span>
+          </span>
+          <button id="refresh-btn" class="refresh-btn" type="button">Refresh</button>
         </div>
       </header>
 
@@ -226,37 +299,25 @@
         <div>
           <article class="card">
             <h2>Current Holder</h2>
-            <div class="stat">
-              <span class="label">Handle</span>
-              <strong id="current-holder">—</strong>
-            </div>
-            <div class="stat">
-              <span class="label">Total Passes</span>
-              <strong id="current-total">0</strong>
-            </div>
-            <div class="stat">
-              <span class="label">Pass Fee</span>
-              <strong id="pass-fee">—</strong>
+            <div id="holder-content">
+              <div class="empty-state">No one's holding the joint yet. Be the first to puff.</div>
             </div>
             <div class="stack">
-              <span id="network-pill" class="pill">Network: —</span>
-              <span id="updated-pill" class="pill">Updated: —</span>
+              <span id="network-pill" class="pill" style="display:none">Connecting...</span>
+              <span id="updated-pill" class="pill" style="display:none">Updated: —</span>
             </div>
           </article>
 
           <article class="card">
-            <h2>Pass Form</h2>
-            <p class="muted">
-              This is x402-protected. If your browser wallet flow is not active yet, you'll see a 402 challenge response.
-            </p>
+            <h2>Pass the Joint</h2>
+            <p class="muted tiny">Each pass costs $0.00402 in USDC via x402 protocol.</p>
             <form id="pass-form">
-              <input name="handle" placeholder="handle (required)" maxlength="50" required />
-              <input name="txHash" placeholder="txHash (optional)" />
-              <textarea name="message" placeholder="message (optional)"></textarea>
-              <button id="submit-btn" type="submit">Send Pass</button>
+              <input name="handle" placeholder="your handle (required)" maxlength="50" required />
+              <input name="txHash" type="hidden" />
+              <textarea name="message" placeholder="say something (optional)"></textarea>
+              <button id="submit-btn" type="submit">🚬 Pass It</button>
             </form>
             <p id="pass-status" class="status muted">Ready.</p>
-            <p class="tiny muted">Tip: use your real handle, it drives leaderboard identity and stats.</p>
           </article>
         </div>
 
@@ -274,13 +335,17 @@
       </section>
     </main>
 
+    <footer>Powered by <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a></footer>
+
     <script>
-      const currentHolderEl = document.getElementById("current-holder");
+      const holderContentEl = document.getElementById("holder-content");
       const currentTotalEl = document.getElementById("current-total");
       const passFeeEl = document.getElementById("pass-fee");
       const networkPillEl = document.getElementById("network-pill");
       const updatedPillEl = document.getElementById("updated-pill");
-      const autoRefreshPillEl = document.getElementById("auto-refresh-pill");
+      const autoToggleEl = document.getElementById("auto-toggle");
+      const autoDotEl = document.getElementById("auto-dot");
+      const autoLabelEl = document.getElementById("auto-label");
       const leaderboardListEl = document.getElementById("leaderboard-list");
       const feedListEl = document.getElementById("feed-list");
       const statusEl = document.getElementById("pass-status");
@@ -320,10 +385,22 @@
         statusEl.className = `status ${type}`;
       }
 
+      function renderHolder(current) {
+        if (!current.currentHolder) {
+          holderContentEl.innerHTML = '<div class="empty-state">No one\'s holding the joint yet. Be the first to puff.</div>';
+          return;
+        }
+        holderContentEl.innerHTML = `
+          <div class="stat"><span class="label">Handle</span><strong>@${current.currentHolder}</strong></div>
+          <div class="stat"><span class="label">Total Passes</span><strong>${current.totalPasses ?? 0}</strong></div>
+          <div class="stat"><span class="label">Pass Fee</span><strong>$${current.passFeeUsd}</strong></div>
+        `;
+      }
+
       function renderLeaderboard(items) {
         leaderboardListEl.innerHTML = "";
         if (!items.length) {
-          leaderboardListEl.innerHTML = '<li class="list-item muted">No passes yet.</li>';
+          leaderboardListEl.innerHTML = '<li class="list-item muted">No one on the board yet. Hit that pass button.</li>';
           return;
         }
 
@@ -343,7 +420,7 @@
 
           li.innerHTML = `
             <div class="top-line"><strong>#${row.rank} @${row.handle}</strong><span>${row.score} pts</span></div>
-            <div class="muted">passes: ${row.totalPasses} • streak: ${row.longestStreak} • first takes: ${row.firstTakes}</div>
+            <div class="muted">passes: ${row.totalPasses} · streak: ${row.longestStreak} · first takes: ${row.firstTakes}</div>
             <div class="stack">${badges || '<span class="muted tiny">No badges yet</span>'}</div>
           `;
           leaderboardListEl.appendChild(li);
@@ -355,7 +432,7 @@
       function renderFeed(items, network) {
         feedListEl.innerHTML = "";
         if (!items.length) {
-          feedListEl.innerHTML = '<li class="list-item muted">Feed is quiet.</li>';
+          feedListEl.innerHTML = '<li class="list-item muted">It\'s quiet in here. Make some noise.</li>';
           return;
         }
 
@@ -378,7 +455,7 @@
           li.innerHTML = `
             <div class="top-line"><strong>@${item.handle}</strong><span class="muted">${new Date(item.createdAt).toLocaleString()}</span></div>
             <div class="muted">${item.gainLine || "pass logged"}</div>
-            <div class="row"><span class="mono muted">${item.status}</span>•${txHtml}</div>
+            <div class="row"><span class="mono muted">${item.status}</span>·${txHtml}</div>
           `;
           feedListEl.appendChild(li);
         }
@@ -401,14 +478,20 @@
 
         const activeNetwork = Array.isArray(health?.x402?.networks)
           ? health.x402.networks.join(", ")
-          : "—";
+          : null;
 
-        currentHolderEl.textContent = current.currentHolder ? `@${current.currentHolder}` : "Nobody yet";
-        currentTotalEl.textContent = String(current.totalPasses ?? 0);
-        passFeeEl.textContent = `$${current.passFeeUsd}`;
-        networkPillEl.textContent = `Network: ${activeNetwork}`;
+        renderHolder(current);
+
+        if (activeNetwork) {
+          networkPillEl.textContent = `Network: ${activeNetwork}`;
+          networkPillEl.style.display = "";
+        } else {
+          networkPillEl.style.display = "none";
+        }
+
         updatedPillEl.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
-        autoRefreshPillEl.textContent = `Auto refresh: ${autoRefresh ? "on" : "off"}`;
+        updatedPillEl.style.display = "";
+
         renderLeaderboard(leaderboard.items || []);
         renderFeed(feed.items || [], health?.x402?.networks?.[0]);
       }
@@ -453,8 +536,8 @@
             if (decoded?.transaction) {
               const txUrl = explorerUrl(decoded.network, decoded.transaction);
               successText = txUrl
-                ? `Pass accepted for @${payload.handle} • tx: ${shortHash(decoded.transaction)} (${decoded.network})`
-                : `Pass accepted for @${payload.handle} • tx: ${shortHash(decoded.transaction)}`;
+                ? `Pass accepted for @${payload.handle} · tx: ${shortHash(decoded.transaction)} (${decoded.network})`
+                : `Pass accepted for @${payload.handle} · tx: ${shortHash(decoded.transaction)}`;
             }
           }
 
@@ -477,9 +560,10 @@
         refreshAll().catch(() => {});
       }, 8000);
 
-      autoRefreshPillEl.addEventListener("click", () => {
+      autoToggleEl.addEventListener("click", () => {
         autoRefresh = !autoRefresh;
-        autoRefreshPillEl.textContent = `Auto refresh: ${autoRefresh ? "on" : "off"}`;
+        autoDotEl.className = autoRefresh ? "dot" : "dot off";
+        autoLabelEl.textContent = autoRefresh ? "auto" : "paused";
       });
 
       refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
