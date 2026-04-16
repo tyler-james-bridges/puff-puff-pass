@@ -66,24 +66,24 @@
         display: flex;
         flex-direction: column;
         gap: 32px;
-        position: relative;
-        isolation: isolate;
-        min-height: 560px;
+      }
+
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .title-row h1 {
+        flex: 1;
+        min-width: 0;
       }
 
       #joint-canvas {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 0;
-        pointer-events: none;
+        width: 72px;
+        height: 72px;
+        flex-shrink: 0;
         display: block;
-      }
-
-      .spotlight > *:not(#joint-canvas) {
-        position: relative;
-        z-index: 1;
       }
 
       .site-title {
@@ -106,9 +106,7 @@
         padding: 24px;
         border: 1px solid var(--border);
         border-radius: 12px;
-        background: rgba(17, 17, 17, 0.55);
-        backdrop-filter: blur(14px) saturate(130%);
-        -webkit-backdrop-filter: blur(14px) saturate(130%);
+        background: var(--surface);
       }
 
       .holder-label {
@@ -267,13 +265,11 @@
         font-size: 0.875rem;
         font-family: var(--sans);
         color: var(--text);
-        background: rgba(10, 10, 10, 0.55);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: var(--bg);
         border: 1px solid var(--border);
         border-radius: 8px;
         outline: none;
-        transition: border-color 0.15s, background 0.15s;
+        transition: border-color 0.15s;
       }
 
       .pass-form input:focus,
@@ -626,8 +622,9 @@
           min-height: auto;
         }
 
-        .spotlight {
-          min-height: 600px;
+        #joint-canvas {
+          width: 56px;
+          height: 56px;
         }
 
         .leaderboard-panel {
@@ -695,9 +692,11 @@
 
         <!-- Left: Spotlight -->
         <div class="spotlight">
-          <canvas id="joint-canvas" aria-hidden="true"></canvas>
           <div>
-            <h1 class="site-title">Puff Puff Pass</h1>
+            <div class="title-row">
+              <h1 class="site-title">Puff Puff Pass</h1>
+              <canvas id="joint-canvas" aria-hidden="true"></canvas>
+            </div>
             <p class="site-subtitle">x402-gated virtual joint leaderboard</p>
           </div>
 
@@ -804,12 +803,10 @@
 
         const scene = new THREE.Scene();
 
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
-
-        const camera = new THREE.PerspectiveCamera(isMobile ? 52 : 46, 1, 0.1, 100);
-        // Centered framing; joint fills most of the canvas
-        camera.position.set(0.0, 0.35, 3.2);
-        camera.lookAt(0.0, 0.05, 0);
+        const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+        // Tight framing — joint diagonal across the small canvas
+        camera.position.set(0.0, 0.0, 2.1);
+        camera.lookAt(0.0, 0.0, 0);
 
         // --- Joint model (proper proportions: ~7:1 length:diameter) ---
         const jointGroup = new THREE.Group();
@@ -892,9 +889,9 @@
         core.scale.set(1, 0.45, 1);
         jointGroup.add(core);
 
-        // Tilt + position — slightly off-center so the ember sits upper-left
-        jointGroup.rotation.z = Math.PI * 0.34;
-        jointGroup.position.set(0.25, -0.05, 0);
+        // Tilt + center — diagonal across the emoji-sized frame
+        jointGroup.rotation.z = Math.PI * 0.28;
+        jointGroup.position.set(0.0, -0.05, 0);
         scene.add(jointGroup);
 
         // World-space ember anchor
@@ -961,7 +958,7 @@
         scene.add(haloOuter);
 
         // --- Smoke particle pool (sprites) ---
-        const MAX_PARTICLES = isMobile ? 90 : 200;
+        const MAX_PARTICLES = 40;
         const tmpColor = new THREE.Color();
         const whiteColor = new THREE.Color(0xe8ece8);
         const greenColor = new THREE.Color(0x10b981);
@@ -996,35 +993,8 @@
           });
         }
 
-        // --- Ambient haze layer (large faint drifters) ---
-        const HAZE_COUNT = 10;
+        // (ambient haze layer removed — not useful at emoji scale)
         const haze = [];
-        for (let i = 0; i < HAZE_COUNT; i++) {
-          const mat = new THREE.SpriteMaterial({
-            map: smokeTex,
-            color: 0x10b981,
-            transparent: true,
-            opacity: 0.04 + Math.random() * 0.05,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
-          });
-          const sprite = new THREE.Sprite(mat);
-          const sx = 1.8 + Math.random() * 1.6;
-          sprite.scale.set(sx, sx, 1);
-          sprite.position.set(
-            -1.5 + Math.random() * 3,
-            -0.6 + Math.random() * 2.2,
-            -0.5 - Math.random() * 0.8
-          );
-          scene.add(sprite);
-          haze.push({
-            sprite,
-            baseY: sprite.position.y,
-            baseX: sprite.position.x,
-            speed: 0.02 + Math.random() * 0.04,
-            phase: Math.random() * Math.PI * 2
-          });
-        }
 
         // --- Pseudo-noise drift (cheap, no external lib) ---
         function drift(t, seed) {
@@ -1109,14 +1079,14 @@
           passState.spinFrom = jointGroup.rotation.y;
           passState.spinTarget = jointGroup.rotation.y + Math.PI;
           // Burst of smoke
-          for (let i = 0; i < 38; i++) spawnSmokeParticle(true);
+          for (let i = 0; i < 14; i++) spawnSmokeParticle(true);
           // Sparks
-          for (let i = 0; i < 14; i++) spawnSpark();
+          for (let i = 0; i < 6; i++) spawnSpark();
         };
 
         // --- Resize handling ---
         function resize() {
-          const rect = spotlight.getBoundingClientRect();
+          const rect = canvas.getBoundingClientRect();
           const w = Math.max(1, Math.floor(rect.width));
           const h = Math.max(1, Math.floor(rect.height));
           renderer.setSize(w, h, false);
@@ -1126,14 +1096,14 @@
         resize();
         if (typeof ResizeObserver !== 'undefined') {
           const ro = new ResizeObserver(resize);
-          ro.observe(spotlight);
+          ro.observe(canvas);
         } else {
           window.addEventListener('resize', resize);
         }
 
         // --- Idle emission cadence ---
         let smokeAccumulator = 0;
-        const IDLE_EMIT_HZ = isMobile ? 18 : 34; // particles per second
+        const IDLE_EMIT_HZ = 10; // particles per second (small canvas = modest flow)
 
         // --- Animation loop ---
         const clock = new THREE.Clock();
@@ -1191,7 +1161,7 @@
 
           // --- Idle joint sway ---
           idleSway.x = Math.sin(elapsed * 0.6) * 0.015;
-          idleSway.z = Math.PI * 0.34 + Math.sin(elapsed * 0.45 + 0.8) * 0.012;
+          idleSway.z = Math.PI * 0.28 + Math.sin(elapsed * 0.45 + 0.8) * 0.012;
           jointGroup.rotation.x = idleSway.x;
           jointGroup.rotation.z = idleSway.z;
 
@@ -1253,13 +1223,6 @@
               p.sprite.scale.set(size, size, 1);
               p.sprite.material.opacity = (1 - t) * 0.9;
             }
-          }
-
-          // --- Ambient haze drift ---
-          for (let i = 0; i < haze.length; i++) {
-            const h = haze[i];
-            h.sprite.position.y = h.baseY + Math.sin(elapsed * h.speed + h.phase) * 0.18;
-            h.sprite.position.x = h.baseX + Math.cos(elapsed * h.speed * 0.7 + h.phase) * 0.22;
           }
 
           renderer.render(scene, camera);
