@@ -128,10 +128,21 @@ async function startServer() {
   const accepts = acceptItems.length === 1 ? acceptItems[0] : acceptItems;
 
   app.use((req, res, next) => {
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = (name, value) => {
+      if (String(name).toLowerCase() === "payment-response") {
+        res.locals.paymentResponseHeader = String(value);
+      }
+      return originalSetHeader(name, value);
+    };
+
     if (req.method === "POST" && req.path === "/api/joint/pass") {
       const handle = typeof req.body?.handle === "string" ? req.body.handle : null;
       res.on("finish", () => {
-        const encoded = res.getHeader("PAYMENT-RESPONSE") || res.getHeader("payment-response");
+        const encoded =
+          res.locals.paymentResponseHeader ||
+          res.getHeader("PAYMENT-RESPONSE") ||
+          res.getHeader("payment-response");
         if (!encoded || !handle) return;
 
         try {
@@ -307,25 +318,31 @@ async function startServer() {
     res.status(500).json({ ok: false, error: String(error.message || error) });
   });
 
-  const server = app.listen(PORT, () => {
-    process.stdout.write(`Puff Puff Pass API listening on ${BASE_URL}\n`);
-    process.stdout.write(`x402 facilitators: ${FACILITATOR_URL}, ${FACILITATOR_URL_ABSTRACT}\n`);
-    process.stdout.write(`x402 networks: ${X402_NETWORKS.join(", ")}\n`);
-    process.stdout.write(`storage: ${process.env.DATABASE_URL ? "postgres" : "pglite"}\n`);
-  });
-
-  const shutdown = async () => {
-    server.close(async () => {
-      await store.close();
-      process.exit(0);
-    });
-  };
-
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+  return app;
 }
 
-startServer().catch((error) => {
-  process.stderr.write(`Failed to start server: ${error?.message || String(error)}\n`);
-  process.exit(1);
-});
+export { startServer as createApp };
+export default startServer;
+
+// Only listen when run directly (not imported by Vercel serverless)
+const isDirectRun = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isDirectRun) {
+  startServer().then((app) => {
+    const server = app.listen(PORT, () => {
+      process.stdout.write(`Puff Puff Pass API listening on ${BASE_URL}\n`);
+      process.stdout.write(`x402 facilitators: ${FACILITATOR_URL}, ${FACILITATOR_URL_ABSTRACT}\n`);
+      process.stdout.write(`x402 networks: ${X402_NETWORKS.join(", ")}\n`);
+      process.stdout.write(`storage: ${process.env.DATABASE_URL ? "postgres" : "pglite"}\n`);
+    });
+
+    const shutdown = async () => {
+      server.close(() => process.exit(0));
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  }).catch((error) => {
+    process.stderr.write(`Failed to start server: ${error?.message || String(error)}\n`);
+    process.exit(1);
+  });
+}

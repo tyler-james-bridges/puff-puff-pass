@@ -43,6 +43,22 @@
         color: #9ca3af;
       }
 
+      .tiny {
+        font-size: 0.84rem;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid #374151;
+        border-radius: 9999px;
+        padding: 4px 10px;
+        background: #0f172a;
+        color: #d1d5db;
+        font-size: 0.82rem;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -61,6 +77,13 @@
         background: #1f2937;
         border-radius: 12px;
         padding: 16px;
+      }
+
+      .stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
       }
 
       .card + .card {
@@ -142,6 +165,12 @@
         border-radius: 10px;
         padding: 10px;
         background: #111827;
+        transition: border-color 0.35s ease, box-shadow 0.35s ease;
+      }
+
+      .list-item.changed {
+        border-color: #10b981;
+        box-shadow: 0 0 0 1px #10b98155 inset;
       }
 
       .top-line {
@@ -153,6 +182,31 @@
       .mono {
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       }
+
+      a.link {
+        color: #93c5fd;
+        text-decoration: none;
+      }
+
+      a.link:hover {
+        text-decoration: underline;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        border: 1px solid #374151;
+        border-radius: 9999px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        color: #d1d5db;
+        background: #0f172a;
+      }
     </style>
   </head>
   <body>
@@ -162,7 +216,10 @@
           <h1>Puff Puff Pass</h1>
           <p class="muted">x402-gated virtual joint leaderboard</p>
         </div>
-        <button id="refresh-btn" type="button">Refresh</button>
+        <div class="row">
+          <span id="auto-refresh-pill" class="pill">Auto refresh: on</span>
+          <button id="refresh-btn" type="button">Refresh</button>
+        </div>
       </header>
 
       <section class="grid">
@@ -181,18 +238,25 @@
               <span class="label">Pass Fee</span>
               <strong id="pass-fee">—</strong>
             </div>
+            <div class="stack">
+              <span id="network-pill" class="pill">Network: —</span>
+              <span id="updated-pill" class="pill">Updated: —</span>
+            </div>
           </article>
 
           <article class="card">
             <h2>Pass Form</h2>
-            <p class="muted">This endpoint is x402-protected. Browser requests without payment will return 402.</p>
+            <p class="muted">
+              This is x402-protected. If your browser wallet flow is not active yet, you'll see a 402 challenge response.
+            </p>
             <form id="pass-form">
               <input name="handle" placeholder="handle (required)" maxlength="50" required />
               <input name="txHash" placeholder="txHash (optional)" />
               <textarea name="message" placeholder="message (optional)"></textarea>
               <button id="submit-btn" type="submit">Send Pass</button>
             </form>
-            <p id="pass-status" class="status muted"></p>
+            <p id="pass-status" class="status muted">Ready.</p>
+            <p class="tiny muted">Tip: use your real handle, it drives leaderboard identity and stats.</p>
           </article>
         </div>
 
@@ -214,11 +278,42 @@
       const currentHolderEl = document.getElementById("current-holder");
       const currentTotalEl = document.getElementById("current-total");
       const passFeeEl = document.getElementById("pass-fee");
+      const networkPillEl = document.getElementById("network-pill");
+      const updatedPillEl = document.getElementById("updated-pill");
+      const autoRefreshPillEl = document.getElementById("auto-refresh-pill");
       const leaderboardListEl = document.getElementById("leaderboard-list");
       const feedListEl = document.getElementById("feed-list");
       const statusEl = document.getElementById("pass-status");
       const passFormEl = document.getElementById("pass-form");
       const submitBtnEl = document.getElementById("submit-btn");
+
+      let previousRanks = new Map();
+      let previousTopFeedId = null;
+      let autoRefresh = true;
+
+      function shortHash(hash) {
+        if (!hash || hash === "pending") return hash || "";
+        return `${hash.slice(0, 10)}…${hash.slice(-6)}`;
+      }
+
+      function explorerUrl(network, txHash) {
+        if (!txHash || txHash === "pending") return null;
+        const map = {
+          "eip155:2741": "https://abscan.org/tx/",
+          "eip155:11124": "https://sepolia.abscan.org/tx/",
+          "eip155:8453": "https://basescan.org/tx/",
+          "eip155:84532": "https://sepolia.basescan.org/tx/"
+        };
+        return map[network] ? `${map[network]}${txHash}` : null;
+      }
+
+      function decodePaymentHeader(value) {
+        try {
+          return JSON.parse(atob(value));
+        } catch {
+          return null;
+        }
+      }
 
       function setStatus(text, type = "muted") {
         statusEl.textContent = text;
@@ -232,18 +327,32 @@
           return;
         }
 
+        const nextRanks = new Map();
+
         for (const row of items.slice(0, 10)) {
           const li = document.createElement("li");
           li.className = "list-item";
+          nextRanks.set(row.handle, row.rank);
+          if (previousRanks.has(row.handle) && previousRanks.get(row.handle) !== row.rank) {
+            li.classList.add("changed");
+          }
+
+          const badges = Array.isArray(row.badges)
+            ? row.badges.slice(0, 3).map((badge) => `<span class="badge">${badge}</span>`).join("")
+            : "";
+
           li.innerHTML = `
             <div class="top-line"><strong>#${row.rank} @${row.handle}</strong><span>${row.score} pts</span></div>
             <div class="muted">passes: ${row.totalPasses} • streak: ${row.longestStreak} • first takes: ${row.firstTakes}</div>
+            <div class="stack">${badges || '<span class="muted tiny">No badges yet</span>'}</div>
           `;
           leaderboardListEl.appendChild(li);
         }
+
+        previousRanks = nextRanks;
       }
 
-      function renderFeed(items) {
+      function renderFeed(items, network) {
         feedListEl.innerHTML = "";
         if (!items.length) {
           feedListEl.innerHTML = '<li class="list-item muted">Feed is quiet.</li>';
@@ -253,31 +362,55 @@
         for (const item of items.slice(0, 8)) {
           const li = document.createElement("li");
           li.className = "list-item";
+          if (previousTopFeedId && item.id === items[0]?.id && item.id !== previousTopFeedId) {
+            li.classList.add("changed");
+          }
+
+          const txUrl = explorerUrl(network, item.txHash);
+          const txHtml = item.txHash
+            ? item.txHash === "pending"
+              ? '<span class="muted">tx pending...</span>'
+              : txUrl
+                ? `<a class="link mono" href="${txUrl}" target="_blank" rel="noopener noreferrer">${shortHash(item.txHash)}</a>`
+                : `<span class="mono">${shortHash(item.txHash)}</span>`
+            : '<span class="muted">no tx</span>';
+
           li.innerHTML = `
             <div class="top-line"><strong>@${item.handle}</strong><span class="muted">${new Date(item.createdAt).toLocaleString()}</span></div>
             <div class="muted">${item.gainLine || "pass logged"}</div>
-            <div class="mono muted">${item.status}${item.txHash ? ` • ${item.txHash}` : ""}</div>
+            <div class="row"><span class="mono muted">${item.status}</span>•${txHtml}</div>
           `;
           feedListEl.appendChild(li);
         }
+
+        previousTopFeedId = items[0]?.id || null;
       }
 
       async function refreshAll() {
-        const [currentRes, leaderboardRes, feedRes] = await Promise.all([
+        const [healthRes, currentRes, leaderboardRes, feedRes] = await Promise.all([
+          fetch("/api/health"),
           fetch("/api/joint/current"),
           fetch("/api/leaderboard"),
           fetch("/api/feed?limit=20")
         ]);
 
+        const health = await healthRes.json();
         const current = await currentRes.json();
         const leaderboard = await leaderboardRes.json();
         const feed = await feedRes.json();
 
+        const activeNetwork = Array.isArray(health?.x402?.networks)
+          ? health.x402.networks.join(", ")
+          : "—";
+
         currentHolderEl.textContent = current.currentHolder ? `@${current.currentHolder}` : "Nobody yet";
         currentTotalEl.textContent = String(current.totalPasses ?? 0);
         passFeeEl.textContent = `$${current.passFeeUsd}`;
+        networkPillEl.textContent = `Network: ${activeNetwork}`;
+        updatedPillEl.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+        autoRefreshPillEl.textContent = `Auto refresh: ${autoRefresh ? "on" : "off"}`;
         renderLeaderboard(leaderboard.items || []);
-        renderFeed(feed.items || []);
+        renderFeed(feed.items || [], health?.x402?.networks?.[0]);
       }
 
       passFormEl.addEventListener("submit", async (event) => {
@@ -293,6 +426,7 @@
         };
 
         try {
+          setStatus("Submitting and waiting for payment verification...", "muted");
           const res = await fetch("/api/joint/pass", {
             method: "POST",
             headers: {
@@ -302,14 +436,29 @@
           });
 
           const body = await res.json().catch(() => ({}));
+          const paymentResponse = res.headers.get("payment-response");
 
           if (!res.ok) {
             const errorText = body?.error || `HTTP ${res.status}`;
-            const hint = res.status === 402 ? " (x402 payment required)" : "";
+            const hint =
+              res.status === 402
+                ? " (x402 payment required, use buyer flow if browser wallet isn't connected)"
+                : "";
             throw new Error(errorText + hint);
           }
 
-          setStatus(`Pass accepted for @${payload.handle}`, "ok");
+          let successText = `Pass accepted for @${payload.handle}`;
+          if (paymentResponse) {
+            const decoded = decodePaymentHeader(paymentResponse);
+            if (decoded?.transaction) {
+              const txUrl = explorerUrl(decoded.network, decoded.transaction);
+              successText = txUrl
+                ? `Pass accepted for @${payload.handle} • tx: ${shortHash(decoded.transaction)} (${decoded.network})`
+                : `Pass accepted for @${payload.handle} • tx: ${shortHash(decoded.transaction)}`;
+            }
+          }
+
+          setStatus(successText, "ok");
           passFormEl.reset();
           await refreshAll();
         } catch (error) {
@@ -321,6 +470,16 @@
 
       document.getElementById("refresh-btn").addEventListener("click", () => {
         refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
+      });
+
+      setInterval(() => {
+        if (!autoRefresh || submitBtnEl.disabled) return;
+        refreshAll().catch(() => {});
+      }, 8000);
+
+      autoRefreshPillEl.addEventListener("click", () => {
+        autoRefresh = !autoRefresh;
+        autoRefreshPillEl.textContent = `Auto refresh: ${autoRefresh ? "on" : "off"}`;
       });
 
       refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
