@@ -1,1797 +1,960 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Puff Puff Pass</title>
-    <meta property="og:title" content="Puff Puff Pass" />
-    <meta property="og:description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://ppp.0x402.sh" />
-    <meta name="description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <style>
-      :root {
-        color-scheme: dark;
-        --bg: #0a0a0a;
-        --surface: #111111;
-        --border: #1e293b;
-        --border-hover: #334155;
-        --text: #e2e8f0;
-        --text-muted: #64748b;
-        --text-dim: #475569;
-        --accent: #10b981;
-        --accent-dim: #065f46;
-        --accent-glow: rgba(16, 185, 129, 0.15);
-        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        --sans: 'Inter', system-ui, -apple-system, sans-serif;
-      }
-
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-
-      body {
-        font-family: var(--sans);
-        background: var(--bg);
-        color: var(--text);
-        min-height: 100vh;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-      }
-
-      /* -- Layout -- */
-      .container {
-        max-width: 1120px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-
-      /* -- Hero Section -- */
-      .hero {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 48px;
-        min-height: 90vh;
-        align-items: start;
-        padding-top: 80px;
-        padding-bottom: 64px;
-      }
-
-      .spotlight {
-        display: flex;
-        flex-direction: column;
-        gap: 32px;
-      }
-
-      .title-row {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-      }
-
-      .title-row h1 {
-        flex: 1;
-        min-width: 0;
-      }
-
-      #joint-canvas {
-        width: 72px;
-        height: 72px;
-        flex-shrink: 0;
-        display: block;
-      }
-
-      .site-title {
-        font-size: 2.5rem;
-        font-weight: 700;
-        letter-spacing: -0.03em;
-        color: #fff;
-        line-height: 1.1;
-      }
-
-      .site-subtitle {
-        font-size: 0.95rem;
-        color: var(--text-muted);
-        margin-top: 8px;
-        letter-spacing: 0.01em;
-      }
-
-      /* -- Current Holder -- */
-      .holder-block {
-        padding: 24px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: var(--surface);
-      }
-
-      .holder-label {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--text-muted);
-        margin-bottom: 12px;
-      }
-
-      .holder-handle {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--accent);
-        line-height: 1.2;
-      }
-
-      .holder-stats {
-        display: flex;
-        gap: 24px;
-        margin-top: 16px;
-      }
-
-      .holder-stat {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .holder-stat-value {
-        font-size: 1.25rem;
-        font-weight: 600;
-        font-family: var(--mono);
-        color: #fff;
-      }
-
-      .holder-stat-label {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .empty-state {
-        color: var(--text-dim);
-        font-size: 0.95rem;
-        padding: 16px 0;
-      }
-
-      /* -- Meta pills (hidden by default, still in DOM for JS) -- */
-      .meta-row {
-        display: none;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-
-      .meta-row.visible {
-        display: flex;
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border: 1px solid var(--border);
-        border-radius: 9999px;
-        padding: 4px 10px;
-        background: transparent;
-        color: var(--text-dim);
-        font-size: 0.75rem;
-        font-family: var(--mono);
-      }
-
-      /* -- Wallet + Form -- */
-      .pass-section {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .wallet-bar {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-
-      .wallet-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 10px 20px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        font-family: var(--sans);
-        color: #fff;
-        background: var(--accent);
-        border: 1px solid var(--accent);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
-        white-space: nowrap;
-      }
-
-      .wallet-btn:hover {
-        background: #0d9668;
-        border-color: #0d9668;
-      }
-
-      .wallet-addr {
-        font-family: var(--mono);
-        font-size: 0.82rem;
-        color: var(--accent);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        max-width: 160px;
-      }
-
-      .wallet-chain {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-      }
-
-      .wallet-disconnect {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 12px;
-        font-size: 0.75rem;
-        font-family: var(--sans);
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: border-color 0.15s, color 0.15s;
-      }
-
-      .wallet-disconnect:hover {
-        border-color: #ef4444;
-        color: #f87171;
-      }
-
-      .pass-form {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .pass-form input,
-      .pass-form textarea {
-        width: 100%;
-        padding: 10px 14px;
-        font-size: 0.875rem;
-        font-family: var(--sans);
-        color: var(--text);
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        outline: none;
-        transition: border-color 0.15s;
-      }
-
-      .pass-form input:focus,
-      .pass-form textarea:focus {
-        border-color: var(--accent);
-      }
-
-      .pass-form input::placeholder,
-      .pass-form textarea::placeholder {
-        color: var(--text-dim);
-      }
-
-      .pass-form textarea {
-        min-height: 64px;
-        resize: vertical;
-      }
-
-      .submit-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 12px 24px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        font-family: var(--sans);
-        color: #fff;
-        background: var(--accent);
-        border: 1px solid var(--accent);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.15s, border-color 0.15s;
-        width: 100%;
-      }
-
-      .submit-btn:hover {
-        background: #0d9668;
-        border-color: #0d9668;
-      }
-
-      .submit-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .status {
-        min-height: 20px;
-        font-size: 0.85rem;
-        color: var(--text-muted);
-      }
-
-      .status.error {
-        color: #f87171;
-      }
-
-      .status.ok {
-        color: var(--accent);
-      }
-
-      .status.muted {
-        color: var(--text-muted);
-      }
-
-      /* -- Controls row (auto-refresh + refresh btn) -- */
-      .controls-row {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-top: 8px;
-      }
-
-      .auto-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        cursor: pointer;
-        user-select: none;
-      }
-
-      .auto-toggle .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--accent);
-        transition: background 0.2s;
-      }
-
-      .auto-toggle .dot.off {
-        background: #4b5563;
-      }
-
-      .refresh-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 4px 12px;
-        font-size: 0.75rem;
-        font-family: var(--sans);
-        background: transparent;
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        color: var(--text-muted);
-        cursor: pointer;
-        transition: border-color 0.15s, color 0.15s;
-      }
-
-      .refresh-btn:hover {
-        border-color: var(--border-hover);
-        color: var(--text);
-      }
-
-      /* -- Leaderboard Panel -- */
-      .leaderboard-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        padding-top: 80px;
-      }
-
-      .panel-heading {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--text-muted);
-        padding-bottom: 16px;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .leaderboard-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-      }
-
-      .lb-item {
-        display: grid;
-        grid-template-columns: 32px 1fr auto;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 0;
-        border-bottom: 1px solid var(--border);
-        transition: border-color 0.3s;
-      }
-
-      .lb-item.changed {
-        border-color: var(--accent);
-        box-shadow: 0 1px 0 0 var(--accent-glow);
-      }
-
-      .lb-rank {
-        font-family: var(--mono);
-        font-size: 0.85rem;
-        color: var(--text-dim);
-        text-align: center;
-      }
-
-      .lb-rank.top {
-        color: var(--accent);
-        font-weight: 600;
-      }
-
-      .lb-info {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-      }
-
-      .lb-handle {
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: #fff;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .lb-meta {
-        font-size: 0.75rem;
-        color: var(--text-dim);
-      }
-
-      .lb-badges {
-        display: flex;
-        gap: 4px;
-        flex-wrap: wrap;
-      }
-
-      .lb-score {
-        font-family: var(--mono);
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        white-space: nowrap;
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 2px 8px;
-        font-size: 0.65rem;
-        border: 1px solid var(--border);
-        border-radius: 9999px;
-        color: var(--text-dim);
-        background: transparent;
-        white-space: nowrap;
-      }
-
-      /* -- Feed Section -- */
-      .feed-section {
-        padding: 64px 0;
-        border-top: 1px solid var(--border);
-      }
-
-      .section-heading {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--text-muted);
-        margin-bottom: 24px;
-      }
-
-      .feed-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-      }
-
-      .feed-item {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid var(--border);
-        transition: border-color 0.3s;
-      }
-
-      .feed-item.changed {
-        border-color: var(--accent);
-      }
-
-      .feed-handle {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: #fff;
-      }
-
-      .feed-detail {
-        font-size: 0.8rem;
-        color: var(--text-dim);
-        margin-top: 2px;
-      }
-
-      .feed-right {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 2px;
-      }
-
-      .feed-time {
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        white-space: nowrap;
-      }
-
-      .feed-tx {
-        font-family: var(--mono);
-        font-size: 0.7rem;
-      }
-
-      .mono {
-        font-family: var(--mono);
-      }
-
-      a.link {
-        color: var(--accent);
-        text-decoration: none;
-      }
-
-      a.link:hover {
-        text-decoration: underline;
-      }
-
-      /* -- How It Works -- */
-      .how-section {
-        padding: 64px 0;
-        border-top: 1px solid var(--border);
-      }
-
-      .steps {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 32px;
-        margin-top: 32px;
-      }
-
-      .step {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
-      .step-number {
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--accent);
-        border-radius: 50%;
-        font-family: var(--mono);
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: var(--accent);
-      }
-
-      .step-text {
-        font-size: 0.9rem;
-        color: var(--text);
-        line-height: 1.5;
-      }
-
-      /* -- Footer -- */
-      footer {
-        text-align: center;
-        padding: 32px 24px;
-        font-size: 0.75rem;
-        color: var(--text-dim);
-        border-top: 1px solid var(--border);
-      }
-
-      footer a {
-        color: var(--text-muted);
-        text-decoration: none;
-        transition: color 0.15s;
-      }
-
-      footer a:hover {
-        color: var(--accent);
-      }
-
-      /* -- Responsive -- */
-      @media (max-width: 768px) {
-        .hero {
-          grid-template-columns: 1fr;
-          gap: 40px;
-          padding-top: 48px;
-          padding-bottom: 48px;
-          min-height: auto;
-        }
-
-        #joint-canvas {
-          width: 56px;
-          height: 56px;
-        }
-
-        .leaderboard-panel {
-          padding-top: 0;
-        }
-
-        .site-title {
-          font-size: 1.75rem;
-        }
-
-        .holder-handle {
-          font-size: 1.5rem;
-        }
-
-        .holder-stats {
-          gap: 16px;
-        }
-
-        .steps {
-          grid-template-columns: 1fr;
-          gap: 24px;
-        }
-
-        .container {
-          padding: 0 16px;
-        }
-
-        .pass-form input,
-        .pass-form textarea,
-        .submit-btn,
-        .wallet-btn {
-          padding: 12px;
-          font-size: 1rem;
-          min-height: 44px;
-        }
-
-        .wallet-addr {
-          max-width: 130px;
-        }
-
-        .feed-item {
-          grid-template-columns: 1fr;
-          gap: 4px;
-        }
-
-        .feed-right {
-          align-items: flex-start;
-          flex-direction: row;
-          gap: 8px;
-        }
-
-        .lb-item {
-          grid-template-columns: 28px 1fr auto;
-          gap: 8px;
-          padding: 10px 0;
-        }
-      }
-    </style>
-  </head>
-  <body>
-
-    <!-- Hero: Spotlight + Leaderboard -->
-    <div class="container">
-      <section class="hero">
-
-        <!-- Left: Spotlight -->
-        <div class="spotlight">
-          <div>
-            <div class="title-row">
-              <h1 class="site-title">Puff Puff Pass</h1>
-              <canvas id="joint-canvas" aria-hidden="true"></canvas>
-            </div>
-            <p class="site-subtitle">x402-gated virtual joint leaderboard</p>
-          </div>
-
-          <!-- Current Holder -->
-          <div class="holder-block">
-            <div class="holder-label">Current Holder</div>
-            <div id="holder-content">
-              <div class="empty-state">No one is holding the joint yet. Be the first.</div>
-            </div>
-          </div>
-
-          <!-- Meta pills (hidden, kept for JS) -->
-          <div class="meta-row" id="meta-row">
-            <span id="network-pill" class="pill" style="display:none">Connecting...</span>
-            <span id="updated-pill" class="pill" style="display:none">Updated: --</span>
-          </div>
-
-          <!-- Wallet + Form -->
-          <div class="pass-section">
-            <div id="wallet-bar" class="wallet-bar">
-              <button id="wallet-connect-btn" class="wallet-btn" type="button">Connect Wallet</button>
-            </div>
-
-            <form id="pass-form" class="pass-form">
-              <input name="handle" placeholder="your handle (required)" maxlength="50" required />
-              <input name="txHash" type="hidden" />
-              <textarea name="message" placeholder="say something (optional)"></textarea>
-              <button id="submit-btn" class="submit-btn" type="submit">Pass It</button>
-            </form>
-            <p id="pass-status" class="status muted">Ready.</p>
-
-            <div class="controls-row">
-              <span id="auto-toggle" class="auto-toggle">
-                <span id="auto-dot" class="dot"></span>
-                <span id="auto-label">auto</span>
-              </span>
-              <button id="refresh-btn" class="refresh-btn" type="button">Refresh</button>
-            </div>
-          </div>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>puff puff pass</title>
+<meta property="og:title" content="Puff Puff Pass" />
+<meta property="og:description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://ppp.0x402.sh" />
+<meta name="description" content="x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #050605;
+    --surface: #0b0d0b;
+    --surface-2: #111411;
+    --border: #1a2220;
+    --border-hot: #253028;
+    --text: #e6ece6;
+    --text-mid: #7a8b7e;
+    --text-dim: #4b5a50;
+    --text-faint: #2c362f;
+    --kush: #22c55e;
+    --kush-2: #4ade80;
+    --kush-dim: #15803d;
+    --kush-glow: rgba(34,197,94,.18);
+    --ember: #ff7a2e;
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans); background: var(--bg); color: var(--text);
+    min-height: 100vh; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  #ambient {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    z-index: 0; pointer-events: none; opacity: .55;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; max-width: 1100px; margin: 0 auto;
+    position: relative; z-index: 2;
+  }
+  .brand { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); display: inline-flex; align-items: center; gap: 10px; }
+  .brand .mark { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--kush-2), var(--kush-dim) 70%); position: relative; }
+  .brand .mark::after { content:''; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 8px var(--ember); }
+  .brand .bracket { color: var(--text-dim); font-weight: 400; }
+  .topnav { display: inline-flex; align-items: center; gap: 22px; font-size: 13px; color: var(--text-mid); }
+  .topnav a { color: inherit; text-decoration: none; }
+  .topnav a:hover { color: var(--text); }
+  .topnav .live { color: var(--kush); display: inline-flex; align-items: center; gap: 7px; }
+  .topnav .live::before { content:''; width: 7px; height: 7px; border-radius: 50%; background: var(--kush); box-shadow: 0 0 8px var(--kush); animation: pulse 1.8s ease-in-out infinite; }
+  .topnav .wallet-chip { margin-left: 8px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding: 40px 0 56px; align-items: center; }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 32px; padding: 24px 0 40px; } }
+
+  .hero-left { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+
+  .av-holder { position: relative; }
+  .avatar {
+    width: 128px; height: 128px; border-radius: 50%;
+    border: 2px solid var(--kush);
+    box-shadow: 0 0 0 6px rgba(34,197,94,.06), 0 0 32px rgba(34,197,94,.18);
+    overflow: hidden; position: relative; background: var(--surface);
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .avatar .fb {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 36px; font-weight: 700;
+    background: linear-gradient(135deg, var(--kush-dim), var(--kush)); color: #04170c;
+  }
+
+  .holder-at {
+    font-family: var(--mono); font-size: 26px; font-weight: 500;
+    color: var(--text); letter-spacing: -.01em; line-height: 1;
+  }
+  .holder-at .at { color: var(--text-mid); font-weight: 400; }
+  .holder-bio { font-size: 13px; color: var(--text-mid); line-height: 1.55; max-width: 360px; }
+
+  .wallet-chip { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px; color:var(--text-mid); padding:7px 14px; border:1px solid var(--border); border-radius:999px; background:rgba(11,13,11,.5); cursor:pointer; transition:border-color .15s, color .15s, background .15s; }
+  .wallet-chip:hover { border-color: var(--kush-dim); color: var(--text); background: rgba(34,197,94,.06); }
+  .wallet-chip .dot { width:6px; height:6px; border-radius:50%; background:var(--text-dim); }
+  .wallet-chip.connected { color: var(--kush); border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.06); }
+  .wallet-chip.connected .dot { background: var(--kush); box-shadow: 0 0 6px var(--kush); }
+
+  .timer-block { display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:4px; }
+  .timer-label { display:inline-flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-mid); }
+  .timer-label .ember-dot { width:6px; height:6px; border-radius:50%; background:var(--ember); box-shadow:0 0 8px var(--ember), 0 0 16px rgba(255,100,30,.4); animation:emberBreathe 2.6s ease-in-out infinite; }
+  .timer-label .strain { color: var(--kush); text-transform: lowercase; letter-spacing: .04em; }
+  @keyframes emberBreathe { 0%,100%{ filter:brightness(1); transform:scale(1); } 50%{ filter:brightness(1.35); transform:scale(1.2); } }
+  .hold-timer { display:inline-flex; align-items:baseline; gap:6px; font-family:var(--mono); font-weight:600; color:var(--kush); letter-spacing:-.02em; font-variant-numeric: tabular-nums; text-shadow: 0 0 24px rgba(34,197,94,.35); }
+  .hold-timer .t-group { display:inline-flex; align-items:baseline; }
+  .hold-timer .t-n { font-size: 72px; line-height: 1; }
+  .hold-timer .t-u { font-size: 16px; color: var(--text-mid); font-weight: 400; margin-left: 3px; }
+  .hold-timer .t-sep { font-size: 60px; color: var(--text-faint); line-height: 1; margin: 0 -2px; }
+
+  .pass-cta { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; max-width: 340px; }
+  .pass-btn { font-family: var(--sans); font-size: 14px; font-weight: 600; padding: 14px 20px; border: 0; border-radius: 10px; background: var(--kush-dim); color: #eafff0; cursor: pointer; transition: background .15s, box-shadow .15s, transform .08s; display:inline-flex; align-items:center; justify-content:space-between; gap:12px; }
+  .pass-btn:hover:not(:disabled) { background: var(--kush); color: #04170c; box-shadow: 0 8px 32px rgba(34,197,94,.28); }
+  .pass-btn:active { transform: translateY(1px); }
+  .pass-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .pass-btn .pass-main { letter-spacing: .01em; }
+  .pass-btn .pass-tag { display:inline-flex; align-items:center; gap:8px; }
+  .pass-btn .pass-price { font-family: var(--mono); font-size: 12px; opacity: .82; font-weight: 500; }
+  .fee-line { font-family: var(--mono); font-size: 10.5px; color: var(--text-dim); letter-spacing: .1em; text-align: center; text-transform: uppercase; }
+  .fee-line .x402-link { color: var(--text-mid); text-decoration: none; border-bottom: 1px dotted var(--text-faint); padding-bottom: 1px; transition: color .15s, border-color .15s; }
+  .fee-line .x402-link:hover { color: var(--text); border-color: var(--text-mid); }
+
+  .x402-chip {
+    display: inline-flex; align-items: baseline;
+    font-family: var(--mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: .02em; padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,255,255,.04); color: var(--text);
+    border: 1px solid var(--border-hot);
+  }
+  .x402-chip .x { color: var(--text-mid); font-weight: 500; }
+  .x402-chip.sm { font-size: 9.5px; padding: 1px 5px; vertical-align: 1px; margin: 0 2px; }
+  .pass-btn .x402-chip { background: rgba(0,0,0,.28); border-color: rgba(255,255,255,.12); color: #eafff0; }
+  .pass-btn .x402-chip .x { color: rgba(234,255,240,.6); }
+  .pass-btn:hover:not(:disabled) .x402-chip { background: rgba(0,0,0,.18); border-color: rgba(0,0,0,.35); color: #04170c; }
+  .pass-btn:hover:not(:disabled) .x402-chip .x { color: rgba(4,23,12,.55); }
+
+  /* pass handle input — small, inline, kushy */
+  .handle-input { font-family: var(--mono); font-size: 13px; padding: 10px 14px; background: rgba(11,13,11,.6); border: 1px solid var(--border); color: var(--text); border-radius: 8px; outline: none; text-align: center; transition: border-color .15s; }
+  .handle-input:focus { border-color: var(--kush-dim); }
+  .handle-input::placeholder { color: var(--text-dim); }
+
+  .pass-status { font-family: var(--mono); font-size: 11px; color: var(--text-mid); letter-spacing: .04em; min-height: 14px; text-align: center; }
+  .pass-status.ok { color: var(--kush); }
+  .pass-status.error { color: #f87171; }
+
+  .holder-stats { display: inline-flex; gap: 28px; }
+  .stat-cell { display: flex; flex-direction: column; gap: 2px; align-items: center; }
+  .stat-cell .v { font-family: var(--sans); font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -.01em; }
+  .stat-cell .l { font-family: var(--mono); font-size: 9.5px; letter-spacing: .15em; text-transform: uppercase; color: var(--text-dim); }
+
+  .lb-panel { background: rgba(11,13,11,.42); backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+  .lb-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+  .lb-title { font-family: var(--mono); font-size: 11px; letter-spacing: .24em; color: var(--text-mid); text-transform: uppercase; }
+  .lb-toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+  .lb-toggle button { font-family: var(--mono); font-size: 11px; padding: 5px 11px; border: 0; background: transparent; color: var(--text-mid); cursor: pointer; border-radius: 4px; }
+  .lb-toggle button.active { background: var(--kush); color: #04170c; font-weight: 600; }
+  .lb-list { list-style: none; }
+  .lb-row { display: grid; grid-template-columns: 36px 32px 1fr auto auto; gap: 12px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .lb-row:last-child { border-bottom: 0; }
+  .lb-row.is-first .lb-rank { color: var(--ember); font-size: 14px; }
+  .lb-rank { font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-align: center; }
+  .lb-avatar { width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: var(--surface-2); position: relative; border: 1px solid var(--border); }
+  .lb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .lb-avatar .fb { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; background: linear-gradient(135deg, var(--kush-dim), var(--kush)); color: #04170c; }
+  .lb-handle { color: var(--text-mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .lb-handle .at { color: var(--text-dim); }
+  .lb-spent { font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .lb-metric { font-family: var(--mono); font-size: 12.5px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lb-row.is-first .lb-metric { color: var(--kush); }
+  .lb-empty { padding: 22px 4px; text-align: center; color: var(--text-dim); font-family: var(--mono); font-size: 12px; }
+
+  .feed-section { padding: 56px 0 24px; border-top: 1px solid var(--border); margin-top: 32px; position: relative; z-index: 1; background: rgba(5,6,5,.6); backdrop-filter: blur(4px); }
+  .feed-inner { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  .feed-title { font-family: var(--mono); font-size: 11px; letter-spacing: .24em; color: var(--text-mid); text-transform: uppercase; margin-bottom: 18px; }
+  .feed-list { list-style: none; }
+  .feed-item { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .feed-item:last-child { border-bottom: 0; }
+  .feed-handle { font-family: var(--mono); font-size: 13px; color: var(--text); }
+  .feed-handle .at { color: var(--text-dim); }
+  .feed-detail { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+  .feed-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .feed-time { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .feed-tx { font-family: var(--mono); font-size: 10.5px; color: var(--text-mid); text-decoration: none; }
+  .feed-tx:hover { color: var(--kush); }
+
+  .how-section { padding: 56px 0 32px; border-top: 1px solid var(--border); margin-top: 8px; position: relative; z-index: 1; background: rgba(5,6,5,.6); backdrop-filter: blur(4px); }
+  .how-inner { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+  .how-title { text-align: center; font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 28px; letter-spacing: -.01em; }
+  .how-steps { display: flex; flex-direction: column; gap: 18px; list-style: none; }
+  .how-step { display: grid; grid-template-columns: 36px 1fr; gap: 18px; align-items: flex-start; }
+  .how-num { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--kush); background: rgba(34,197,94,.08); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--kush); }
+  .how-step-body .h { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .how-step-body .p { font-size: 13.5px; color: var(--text-mid); line-height: 1.55; }
+  .how-step-body .p a { color: var(--kush); text-decoration: none; border-bottom: 1px dashed var(--kush-dim); }
+  .how-step-body code { font-family: var(--mono); font-size: 12px; background: rgba(34,197,94,.08); color: var(--kush); padding: 1px 5px; border-radius: 3px; }
+
+  footer.site { padding: 28px 0 44px; font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); letter-spacing: .05em; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; position: relative; z-index: 1; }
+  footer.site a { color: var(--text-mid); text-decoration: none; }
+  footer.site a:hover { color: var(--kush); }
+
+  .tweaks { position: fixed; bottom: 16px; right: 16px; width: 320px; background: var(--surface); border: 1px solid var(--border-hot); border-radius: 12px; font-family: var(--mono); font-size: 12px; color: var(--text); z-index: 100; display: none; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  .tweaks.open { display: block; }
+  .tweaks-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .tweaks-title { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--text-mid); display: inline-flex; align-items: center; gap: 8px; }
+  .tweaks-title .badge { font-size: 9px; letter-spacing: .1em; padding: 2px 6px; background: var(--kush); color: #04170c; border-radius: 3px; font-weight: 700; }
+  .tweaks-close { background: transparent; border: 0; color: var(--text-dim); font-size: 16px; cursor: pointer; }
+  .tweaks-close:hover { color: var(--text); }
+  .tweaks-body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 16px; max-height: 74vh; overflow-y: auto; }
+  .tweak-group { display: flex; flex-direction: column; gap: 8px; }
+  .tweak-label { font-size: 9.5px; letter-spacing: .18em; text-transform: uppercase; color: var(--text-mid); display: flex; justify-content: space-between; align-items: baseline; }
+  .tweak-label .v { color: var(--kush); letter-spacing: 0; text-transform: none; font-size: 11px; }
+  .rig-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .rig-tile { aspect-ratio: 1 / 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 6px 2px; transition: border-color .15s, background .15s; color: var(--text-mid); }
+  .rig-tile:hover { border-color: var(--border-hot); color: var(--text); }
+  .rig-tile.active { border-color: var(--kush); background: rgba(34,197,94,.08); color: var(--kush); }
+  .rig-tile svg { width: 26px; height: 26px; }
+  .rig-tile .lbl { font-size: 8.5px; letter-spacing: .05em; text-transform: uppercase; line-height: 1; }
+  .tweak-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tweak-chip { font-family: var(--mono); font-size: 10.5px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); color: var(--text-mid); cursor: pointer; border-radius: 5px; display: inline-flex; align-items: center; gap: 6px; }
+  .tweak-chip:hover { color: var(--text); }
+  .tweak-chip.active { background: var(--kush); color: #04170c; border-color: var(--kush); font-weight: 600; }
+  .tweak-footer { font-size: 10px; color: var(--text-dim); letter-spacing: .04em; display: flex; justify-content: space-between; padding-top: 4px; }
+  .tweak-footer button { font-family: var(--mono); font-size: 10px; background: transparent; border: 0; color: var(--kush); cursor: pointer; padding: 0; }
+
+  @media (max-width: 560px) {
+    .holder-at { font-size: 22px; }
+    .avatar { width: 108px; height: 108px; }
+    .lb-row { grid-template-columns: 28px 24px 1fr auto; gap: 10px; }
+    .lb-spent { display: none; }
+    .hold-timer .t-n { font-size: 52px; }
+    .tweaks { width: calc(100% - 24px); right: 12px; bottom: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .timer-label .ember-dot { animation: none; } .topnav .live::before { animation: none; } }
+  @media (max-width: 720px) {
+    .topnav .live, .topnav a { display: none; }
+    .topnav { gap: 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="ambient" aria-hidden="true"></canvas>
+
+<header class="topbar">
+  <span class="brand">
+    <span class="mark"></span>
+    <span><span class="bracket">[</span>puff.puff.pass<span class="bracket">]</span></span>
+  </span>
+  <nav class="topnav">
+    <span class="live">live</span>
+    <a href="#leaderboard">leaderboard</a>
+    <a href="/openapi.json">api</a>
+    <button class="wallet-chip" id="wallet-chip" type="button">
+      <span class="dot"></span>
+      <span id="wallet-chip-label">connect wallet</span>
+    </button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="hero-left">
+      <div class="av-holder">
+        <div class="avatar" id="avatar">
+          <img id="avatar-img" alt="" crossorigin="anonymous" style="display:none" />
+          <div class="fb" id="avatar-fb">·</div>
         </div>
+      </div>
 
-        <!-- Right: Leaderboard -->
-        <div class="leaderboard-panel">
-          <div class="panel-heading">Leaderboard</div>
-          <ul id="leaderboard-list" class="leaderboard-list"></ul>
+      <div class="holder-at"><span class="at">@</span><span id="holder-handle">nobody</span></div>
+
+      <p class="holder-bio" id="holder-bio">no one is holding the joint yet. be the first.</p>
+
+      <div class="holder-stats" id="holder-stats">
+        <div class="stat-cell"><span class="v" id="stat-passes">0</span><span class="l">total passes</span></div>
+        <div class="stat-cell"><span class="v" id="stat-fee">$0.00402</span><span class="l">pass fee</span></div>
+      </div>
+
+      <div class="timer-block">
+        <div class="timer-label">
+          <span class="ember-dot" id="rig-ember" aria-hidden="true"></span>
+          holding · <span id="rig-card-rig">joint</span> · <span class="strain" id="rig-card-strain">og kush</span>
         </div>
+        <div class="hold-timer">
+          <span class="t-group"><span class="t-n" id="hold-h">0</span><span class="t-u">h</span></span>
+          <span class="t-sep">:</span>
+          <span class="t-group"><span class="t-n" id="hold-m">00</span><span class="t-u">m</span></span>
+          <span class="t-sep">:</span>
+          <span class="t-group"><span class="t-n" id="hold-s">00</span><span class="t-u">s</span></span>
+        </div>
+      </div>
 
-      </section>
+      <form class="pass-cta" id="pass-form">
+        <input class="handle-input" id="handle-input" name="handle" placeholder="your handle" maxlength="50" required />
+        <button class="pass-btn" id="pass-btn" type="submit">
+          <span class="pass-main">pass it</span>
+          <span class="pass-tag"><span class="x402-chip"><span class="x">x</span>402</span><span class="pass-price">$0.00402 usdc</span></span>
+        </button>
+        <span class="fee-line">pay-per-action over <a href="https://x402.org" target="_blank" rel="noopener" class="x402-link"><span style="color:var(--text-mid)">x</span>402</a> · base · abstract</span>
+        <span class="pass-status" id="pass-status">connect wallet to pass</span>
+      </form>
     </div>
 
-    <!-- Feed -->
-    <div class="container">
-      <section class="feed-section">
-        <div class="section-heading">Recent Activity</div>
-        <ul id="feed-list" class="feed-list"></ul>
-      </section>
-    </div>
-
-    <!-- How It Works -->
-    <div class="container">
-      <section class="how-section">
-        <div class="section-heading">How It Works</div>
-        <div class="steps">
-          <div class="step">
-            <div class="step-number">1</div>
-            <div class="step-text">Connect your wallet</div>
-          </div>
-          <div class="step">
-            <div class="step-number">2</div>
-            <div class="step-text">Enter your handle and pass the joint ($0.00402 USDC)</div>
-          </div>
-          <div class="step">
-            <div class="step-number">3</div>
-            <div class="step-text">Climb the leaderboard</div>
+    <div class="hero-right" id="leaderboard">
+      <div class="lb-panel">
+        <div class="lb-head">
+          <span class="lb-title">Leaderboard</span>
+          <div class="lb-toggle" id="lb-toggle">
+            <button class="active" data-mode="score">Score</button>
+            <button data-mode="passes">Passes</button>
           </div>
         </div>
-      </section>
+        <ul class="lb-list" id="lb-list"><li class="lb-empty">loading…</li></ul>
+      </div>
     </div>
-
-    <footer>Powered by <a href="https://www.x402.org/" target="_blank" rel="noopener noreferrer">x402</a></footer>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
-    <script>
-      // ===== three.js scene: joint + smoke =====
-      (function initJointScene() {
-        const spotlight = document.querySelector('.spotlight');
-        const canvas = document.getElementById('joint-canvas');
-        if (!spotlight || !canvas || typeof THREE === 'undefined') return;
-
-        const reducedMotion = typeof matchMedia === 'function' &&
-          matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-        // --- Renderer / scene / camera ---
-        const renderer = new THREE.WebGLRenderer({
-          canvas,
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance'
-        });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x000000, 0);
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-        const scene = new THREE.Scene();
-
-        const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-        // Tight framing — joint diagonal across the small canvas
-        camera.position.set(0.0, 0.0, 2.1);
-        camera.lookAt(0.0, 0.0, 0);
-
-        // --- Joint model (proper proportions: ~7:1 length:diameter) ---
-        const jointGroup = new THREE.Group();
-
-        // Paper body — tapered, with subtle wrinkles
-        const paperGeom = new THREE.CylinderGeometry(0.14, 0.11, 1.05, 44, 12, false);
-        const pos = paperGeom.attributes.position;
-        for (let i = 0; i < pos.count; i++) {
-          const x = pos.getX(i);
-          const y = pos.getY(i);
-          const z = pos.getZ(i);
-          const radial = Math.hypot(x, z) || 1;
-          const wrinkle =
-            Math.sin(y * 26 + x * 4) * 0.0035 +
-            Math.sin(y * 58 + z * 3) * 0.0022;
-          pos.setXYZ(i, x + (x / radial) * wrinkle, y, z + (z / radial) * wrinkle);
-        }
-        paperGeom.computeVertexNormals();
-        const paperMat = new THREE.MeshStandardMaterial({
-          color: 0xd6c8a8,
-          roughness: 0.95,
-          metalness: 0.0
-        });
-        const paper = new THREE.Mesh(paperGeom, paperMat);
-        jointGroup.add(paper);
-
-        // Filter end (rolled tip, darker beige)
-        const filterGeom = new THREE.CylinderGeometry(0.112, 0.105, 0.22, 32, 1, false);
-        const filterMat = new THREE.MeshStandardMaterial({
-          color: 0xa07a4a,
-          roughness: 0.95
-        });
-        const filter = new THREE.Mesh(filterGeom, filterMat);
-        filter.position.y = -0.635;
-        jointGroup.add(filter);
-
-        // Ash band near ember
-        const ashGeom = new THREE.CylinderGeometry(0.155, 0.143, 0.18, 36, 1, false);
-        const ashMat = new THREE.MeshStandardMaterial({
-          color: 0x4a443e,
-          roughness: 1.0
-        });
-        const ash = new THREE.Mesh(ashGeom, ashMat);
-        ash.position.y = 0.44;
-        jointGroup.add(ash);
-
-        // Char ring (black burn line between paper and ember)
-        const charGeom = new THREE.CylinderGeometry(0.148, 0.155, 0.04, 32, 1, false);
-        const charMat = new THREE.MeshStandardMaterial({
-          color: 0x0a0807,
-          roughness: 1.0
-        });
-        const char = new THREE.Mesh(charGeom, charMat);
-        char.position.y = 0.55;
-        jointGroup.add(char);
-
-        // Ember — emissive disc/dome at tip
-        const emberGeom = new THREE.SphereGeometry(0.168, 28, 18);
-        const emberMat = new THREE.MeshStandardMaterial({
-          color: 0x200800,
-          emissive: 0xff5020,
-          emissiveIntensity: 2.6,
-          roughness: 1.0,
-          metalness: 0.0
-        });
-        const ember = new THREE.Mesh(emberGeom, emberMat);
-        ember.position.y = 0.6;
-        ember.scale.set(1, 0.52, 1);
-        jointGroup.add(ember);
-
-        // Inner hot core (smaller, brighter)
-        const coreGeom = new THREE.SphereGeometry(0.09, 20, 14);
-        const coreMat = new THREE.MeshBasicMaterial({
-          color: 0xffd890,
-          transparent: true,
-          opacity: 0.92
-        });
-        const core = new THREE.Mesh(coreGeom, coreMat);
-        core.position.y = 0.63;
-        core.scale.set(1, 0.45, 1);
-        jointGroup.add(core);
-
-        // Tilt + center — diagonal across the emoji-sized frame
-        jointGroup.rotation.z = Math.PI * 0.28;
-        jointGroup.position.set(0.0, -0.05, 0);
-        scene.add(jointGroup);
-
-        // World-space ember anchor
-        const emberAnchorLocal = new THREE.Vector3(0, 0.63, 0);
-        const emberWorld = new THREE.Vector3();
-
-        // --- Lights ---
-        scene.add(new THREE.AmbientLight(0x10b981, 0.22));
-
-        // Cool rim from upper-left (dim so paper reads moody, not lightsaber)
-        const keyLight = new THREE.DirectionalLight(0x7a8aa8, 0.28);
-        keyLight.position.set(-3, 4, 2.5);
-        scene.add(keyLight);
-
-        // Warm fill from lower-right to bring out paper texture
-        const fillLight = new THREE.DirectionalLight(0xffa060, 0.2);
-        fillLight.position.set(2, -1, 1.5);
-        scene.add(fillLight);
-
-        // --- Particle sprite texture (procedural soft circle) ---
-        function makeSoftCircleTexture(size) {
-          const c = document.createElement('canvas');
-          c.width = size;
-          c.height = size;
-          const ctx = c.getContext('2d');
-          const r = size / 2;
-          const g = ctx.createRadialGradient(r, r, 0, r, r, r);
-          g.addColorStop(0.0, 'rgba(255,255,255,1)');
-          g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
-          g.addColorStop(0.75, 'rgba(255,255,255,0.12)');
-          g.addColorStop(1.0, 'rgba(255,255,255,0)');
-          ctx.fillStyle = g;
-          ctx.fillRect(0, 0, size, size);
-          const tex = new THREE.CanvasTexture(c);
-          tex.colorSpace = THREE.SRGBColorSpace;
-          tex.needsUpdate = true;
-          return tex;
-        }
-        const smokeTex = makeSoftCircleTexture(128);
-
-        // --- Ember halo (always-on additive glow behind ember) ---
-        const haloMat = new THREE.SpriteMaterial({
-          map: smokeTex,
-          color: 0xff7a2e,
-          transparent: true,
-          opacity: 0.85,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending
-        });
-        const haloSprite = new THREE.Sprite(haloMat);
-        haloSprite.scale.set(1.1, 1.1, 1);
-        scene.add(haloSprite);
-
-        const haloOuterMat = new THREE.SpriteMaterial({
-          map: smokeTex,
-          color: 0xff4a10,
-          transparent: true,
-          opacity: 0.35,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending
-        });
-        const haloOuter = new THREE.Sprite(haloOuterMat);
-        haloOuter.scale.set(2.4, 2.4, 1);
-        scene.add(haloOuter);
-
-        // --- Smoke particle pool (sprites) ---
-        const MAX_PARTICLES = 40;
-        const tmpColor = new THREE.Color();
-        const whiteColor = new THREE.Color(0xe8ece8);
-        const greenColor = new THREE.Color(0x10b981);
-        const sparkColor = new THREE.Color(0x8ef0c3);
-
-        const particles = [];
-        for (let i = 0; i < MAX_PARTICLES; i++) {
-          const mat = new THREE.SpriteMaterial({
-            map: smokeTex,
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            rotation: 0
-          });
-          const sprite = new THREE.Sprite(mat);
-          sprite.visible = false;
-          scene.add(sprite);
-          particles.push({
-            sprite: sprite,
-            alive: false,
-            age: 0,
-            life: 0,
-            vx: 0,
-            vy: 0,
-            vz: 0,
-            startSize: 0.12,
-            endSize: 0.75,
-            seed: Math.random() * 100,
-            kind: 'smoke'
-          });
-        }
-
-        // (ambient haze layer removed — not useful at emoji scale)
-        const haze = [];
-
-        // --- Pseudo-noise drift (cheap, no external lib) ---
-        function drift(t, seed) {
-          return (
-            Math.sin(t * 0.7 + seed) * 0.5 +
-            Math.sin(t * 1.3 + seed * 2.1) * 0.3 +
-            Math.sin(t * 2.1 + seed * 0.7) * 0.2
-          );
-        }
-
-        // --- Particle spawn helpers ---
-        function spawnSmokeParticle(burst) {
-          for (let i = 0; i < particles.length; i++) {
-            const p = particles[i];
-            if (p.alive) continue;
-            p.alive = true;
-            p.age = 0;
-            p.life = burst ? (0.9 + Math.random() * 0.7) : (1.6 + Math.random() * 1.4);
-            const jitterX = (Math.random() - 0.5) * 0.05;
-            const jitterZ = (Math.random() - 0.5) * 0.05;
-            p.sprite.position.copy(emberWorld);
-            p.sprite.position.x += jitterX;
-            p.sprite.position.z += jitterZ;
-            const upward = burst ? (1.6 + Math.random() * 1.0) : (0.5 + Math.random() * 0.45);
-            p.vx = (Math.random() - 0.5) * (burst ? 1.1 : 0.22);
-            p.vy = upward;
-            p.vz = (Math.random() - 0.5) * (burst ? 0.7 : 0.16);
-            p.startSize = burst ? (0.12 + Math.random() * 0.08) : (0.18 + Math.random() * 0.1);
-            p.endSize = burst ? (1.1 + Math.random() * 0.6) : (1.3 + Math.random() * 0.7);
-            p.seed = Math.random() * 100;
-            p.kind = 'smoke';
-            p.sprite.material.rotation = Math.random() * Math.PI * 2;
-            p.sprite.material.blending = THREE.AdditiveBlending;
-            p.sprite.scale.set(p.startSize, p.startSize, 1);
-            p.sprite.visible = true;
-            return p;
-          }
-          return null;
-        }
-
-        function spawnSpark() {
-          for (let i = 0; i < particles.length; i++) {
-            const p = particles[i];
-            if (p.alive) continue;
-            p.alive = true;
-            p.age = 0;
-            p.life = 0.6 + Math.random() * 0.3;
-            p.sprite.position.copy(emberWorld);
-            p.vx = (Math.random() - 0.5) * 1.4;
-            p.vy = 0.8 + Math.random() * 1.2;
-            p.vz = (Math.random() - 0.5) * 1.0;
-            p.startSize = 0.05;
-            p.endSize = 0.12;
-            p.seed = Math.random() * 100;
-            p.kind = 'spark';
-            p.sprite.material.rotation = 0;
-            p.sprite.material.blending = THREE.AdditiveBlending;
-            p.sprite.material.color.copy(sparkColor);
-            p.sprite.scale.set(p.startSize, p.startSize, 1);
-            p.sprite.visible = true;
-            return p;
-          }
-          return null;
-        }
-
-        // --- Pass animation state ---
-        const passState = {
-          active: false,
-          flareTime: 0,
-          flareDuration: 0.5,
-          spinTime: 0,
-          spinDuration: 1.8,
-          spinFrom: 0,
-          spinTarget: 0
-        };
-
-        window.triggerPassAnimation = function triggerPassAnimation() {
-          if (reducedMotion) return;
-          passState.active = true;
-          passState.flareTime = 0;
-          passState.spinTime = 0;
-          passState.spinFrom = jointGroup.rotation.y;
-          passState.spinTarget = jointGroup.rotation.y + Math.PI;
-          // Burst of smoke
-          for (let i = 0; i < 14; i++) spawnSmokeParticle(true);
-          // Sparks
-          for (let i = 0; i < 6; i++) spawnSpark();
-        };
-
-        // --- Resize handling ---
-        function resize() {
-          const rect = canvas.getBoundingClientRect();
-          const w = Math.max(1, Math.floor(rect.width));
-          const h = Math.max(1, Math.floor(rect.height));
-          renderer.setSize(w, h, false);
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
-        }
-        resize();
-        if (typeof ResizeObserver !== 'undefined') {
-          const ro = new ResizeObserver(resize);
-          ro.observe(canvas);
-        } else {
-          window.addEventListener('resize', resize);
-        }
-
-        // --- Idle emission cadence ---
-        let smokeAccumulator = 0;
-        const IDLE_EMIT_HZ = 10; // particles per second (small canvas = modest flow)
-
-        // --- Animation loop ---
-        const clock = new THREE.Clock();
-        let elapsed = 0;
-        const idleSway = { x: 0, z: 0 };
-
-        function tick() {
-          const dt = Math.min(clock.getDelta(), 0.05);
-          elapsed += dt;
-
-          // Update world ember anchor (follows joint transform)
-          emberWorld.copy(emberAnchorLocal).applyMatrix4(jointGroup.matrixWorld);
-          haloSprite.position.copy(emberWorld);
-          haloOuter.position.copy(emberWorld);
-
-          // --- Idle ember breathing ---
-          const pulse =
-            0.85 +
-            Math.sin(elapsed * 2.1) * 0.18 +
-            Math.sin(elapsed * 4.7 + 1.2) * 0.08 +
-            Math.sin(elapsed * 0.9 + 0.4) * 0.05;
-          let emissive = 2.6 * pulse;
-          let haloIntensity = pulse;
-
-          // --- Pass flare ---
-          if (passState.active) {
-            passState.flareTime += dt;
-            const ft = passState.flareTime / passState.flareDuration;
-            if (ft < 1) {
-              const shape = ft < 0.25 ? (ft / 0.25) : (1 - (ft - 0.25) / 0.75);
-              const boost = Math.max(0, shape) * 2.0;
-              emissive += 5.5 * boost;
-              haloIntensity += 2.0 * boost;
-            }
-
-            passState.spinTime += dt;
-            const st = Math.min(1, passState.spinTime / passState.spinDuration);
-            const eased = 1 - Math.pow(1 - st, 3);
-            jointGroup.rotation.y = passState.spinFrom + (passState.spinTarget - passState.spinFrom) * eased;
-
-            if (st >= 1 && passState.flareTime >= passState.flareDuration) {
-              passState.active = false;
-            }
-          }
-
-          emberMat.emissiveIntensity = emissive;
-          haloMat.opacity = 0.7 * haloIntensity;
-          haloOuterMat.opacity = 0.32 * haloIntensity;
-          const haloBreath = 1 + 0.08 * Math.sin(elapsed * 3.2);
-          haloSprite.scale.set(1.1 * haloBreath, 1.1 * haloBreath, 1);
-          haloOuter.scale.set(2.4 * haloBreath, 2.4 * haloBreath, 1);
-          core.material.opacity = 0.7 + 0.25 * pulse;
-          const coreScale = 0.9 + 0.15 * pulse;
-          core.scale.set(coreScale, 0.45 * coreScale, coreScale);
-
-          // --- Idle joint sway ---
-          idleSway.x = Math.sin(elapsed * 0.6) * 0.015;
-          idleSway.z = Math.PI * 0.28 + Math.sin(elapsed * 0.45 + 0.8) * 0.012;
-          jointGroup.rotation.x = idleSway.x;
-          jointGroup.rotation.z = idleSway.z;
-
-          // --- Idle smoke emission ---
-          if (!reducedMotion) {
-            smokeAccumulator += dt * IDLE_EMIT_HZ;
-            while (smokeAccumulator >= 1) {
-              spawnSmokeParticle(false);
-              smokeAccumulator -= 1;
-            }
-          }
-
-          // --- Update particles ---
-          for (let i = 0; i < particles.length; i++) {
-            const p = particles[i];
-            if (!p.alive) continue;
-            p.age += dt;
-            const t = p.age / p.life;
-            if (t >= 1) {
-              p.alive = false;
-              p.sprite.visible = false;
-              continue;
-            }
-
-            // Organic drift on smoke
-            if (p.kind === 'smoke') {
-              const dX = drift(elapsed + p.seed, p.seed) * 0.4;
-              const dZ = drift(elapsed * 0.8 + p.seed * 1.7, p.seed * 0.5) * 0.3;
-              p.sprite.position.x += (p.vx + dX * 0.15) * dt;
-              p.sprite.position.y += p.vy * dt;
-              p.sprite.position.z += (p.vz + dZ * 0.1) * dt;
-              // Gentle deceleration upward
-              p.vy *= (1 - 0.25 * dt);
-
-              // Size ramp
-              const size = p.startSize + (p.endSize - p.startSize) * t;
-              p.sprite.scale.set(size, size, 1);
-
-              // Color lerp white → green
-              tmpColor.copy(whiteColor).lerp(greenColor, Math.min(1, t * 1.2));
-              p.sprite.material.color.copy(tmpColor);
-
-              // Opacity curve: fade in, hold, fade out
-              let op;
-              if (t < 0.15) op = t / 0.15;
-              else if (t > 0.7) op = (1 - t) / 0.3;
-              else op = 1;
-              p.sprite.material.opacity = op * 0.9;
-
-              // Slow rotation
-              p.sprite.material.rotation += dt * 0.15;
-            } else if (p.kind === 'spark') {
-              // Sparks fly out with slight gravity
-              p.sprite.position.x += p.vx * dt;
-              p.sprite.position.y += p.vy * dt;
-              p.sprite.position.z += p.vz * dt;
-              p.vy -= 1.5 * dt;
-              const size = p.startSize + (p.endSize - p.startSize) * t;
-              p.sprite.scale.set(size, size, 1);
-              p.sprite.material.opacity = (1 - t) * 0.9;
-            }
-          }
-
-          renderer.render(scene, camera);
-          if (!reducedMotion) {
-            requestAnimationFrame(tick);
-          }
-        }
-
-        if (reducedMotion) {
-          // Single static frame
-          emberWorld.copy(emberAnchorLocal).applyMatrix4(jointGroup.matrixWorld);
-          haloSprite.position.copy(emberWorld);
-          haloOuter.position.copy(emberWorld);
-          renderer.render(scene, camera);
-        } else {
-          requestAnimationFrame(tick);
-        }
-
-        // --- Cleanup on page unload ---
-        window.addEventListener('beforeunload', function () {
-          renderer.dispose();
-          smokeTex.dispose();
-          paperGeom.dispose();
-          filterGeom.dispose();
-          ashGeom.dispose();
-          charGeom.dispose();
-          emberGeom.dispose();
-          coreGeom.dispose();
-          paperMat.dispose();
-          filterMat.dispose();
-          ashMat.dispose();
-          charMat.dispose();
-          emberMat.dispose();
-          coreMat.dispose();
-        });
-      })();
-    </script>
-
-    <script>
-      const holderContentEl = document.getElementById("holder-content");
-      const currentTotalEl = document.getElementById("current-total");
-      const passFeeEl = document.getElementById("pass-fee");
-      const networkPillEl = document.getElementById("network-pill");
-      const updatedPillEl = document.getElementById("updated-pill");
-      const autoToggleEl = document.getElementById("auto-toggle");
-      const autoDotEl = document.getElementById("auto-dot");
-      const autoLabelEl = document.getElementById("auto-label");
-      const leaderboardListEl = document.getElementById("leaderboard-list");
-      const feedListEl = document.getElementById("feed-list");
-      const statusEl = document.getElementById("pass-status");
-      const passFormEl = document.getElementById("pass-form");
-      const submitBtnEl = document.getElementById("submit-btn");
-
-      let previousRanks = new Map();
-      let previousTopFeedId = null;
-      let autoRefresh = true;
-
-      // -- Wallet state --
-      let walletProvider = null;
-      let walletSigner = null;
-      let walletAddress = null;
-      let walletChainId = null;
-
-      const walletBarEl = document.getElementById("wallet-bar");
-      const walletConnectBtnEl = document.getElementById("wallet-connect-btn");
-
-      const CHAIN_NAMES = {
-        8453: "Base",
-        2741: "Abstract",
-        84532: "Base Sepolia",
-        11124: "Abstract Testnet"
-      };
-
-      const CHAIN_TO_NETWORK = {
-        8453: "eip155:8453",
-        2741: "eip155:2741",
-        84532: "eip155:84532",
-        11124: "eip155:11124"
-      };
-
-      // USDC token metadata per chain for EIP-3009 domain
-      const USDC_META = {
-        8453: {
-          address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-          name: "USD Coin",
-          version: "2",
-          decimals: 6
-        },
-        2741: {
-          address: "0x84a71ccd554cc1b02749b35d22f684cc8ec987e1",
-          name: "Bridged USDC (Stargate)",
-          version: "2",
-          decimals: 6
-        }
-      };
-
-      function shortAddress(addr) {
-        if (!addr) return "";
-        return addr.slice(0, 6) + "..." + addr.slice(-4);
-      }
-
-      function renderWalletBar() {
-        if (!walletAddress) {
-          walletBarEl.innerHTML = '<button id="wallet-connect-btn" class="wallet-btn" type="button">Connect Wallet</button>';
-          walletBarEl.querySelector("#wallet-connect-btn").addEventListener("click", connectWallet);
-          return;
-        }
-        const chainName = CHAIN_NAMES[walletChainId] || `Chain ${walletChainId}`;
-        walletBarEl.innerHTML =
-          `<span class="wallet-addr" title="${walletAddress}">${shortAddress(walletAddress)}</span>` +
-          `<span class="wallet-chain">${chainName}</span>` +
-          `<button class="wallet-disconnect" type="button">Disconnect</button>`;
-        walletBarEl.querySelector(".wallet-disconnect").addEventListener("click", disconnectWallet);
-      }
-
-      async function connectWallet() {
-        if (typeof window.ethereum === "undefined") {
-          setStatus("No wallet detected. Install MetaMask or a compatible browser wallet.", "error");
-          return;
-        }
-        try {
-          walletProvider = new ethers.BrowserProvider(window.ethereum);
-          walletSigner = await walletProvider.getSigner();
-          walletAddress = await walletSigner.getAddress();
-          const network = await walletProvider.getNetwork();
-          walletChainId = Number(network.chainId);
-          renderWalletBar();
-          setStatus("Wallet connected. Ready to pass.", "ok");
-
-          // Listen for account/chain changes
-          window.ethereum.on("accountsChanged", handleAccountsChanged);
-          window.ethereum.on("chainChanged", handleChainChanged);
-        } catch (err) {
-          setStatus("Wallet connection failed: " + (err.message || String(err)), "error");
-        }
-      }
-
-      function handleAccountsChanged(accounts) {
-        if (!accounts.length) {
-          disconnectWallet();
-          return;
-        }
-        walletAddress = accounts[0];
-        renderWalletBar();
-      }
-
-      function handleChainChanged() {
-        // Re-init provider on chain switch
-        connectWallet();
-      }
-
-      function disconnectWallet() {
-        walletProvider = null;
-        walletSigner = null;
-        walletAddress = null;
-        walletChainId = null;
-        if (window.ethereum) {
-          window.ethereum.removeListener("accountsChanged", handleAccountsChanged);
-          window.ethereum.removeListener("chainChanged", handleChainChanged);
-        }
-        renderWalletBar();
-        setStatus("Ready.", "muted");
-      }
-
-      walletConnectBtnEl.addEventListener("click", connectWallet);
-
-      // -- x402 browser payment flow --
-      function parsePaymentRequired(response) {
-        const payReqHeader = response.headers.get("payment-required");
-        if (!payReqHeader) return null;
-        try {
-          return JSON.parse(atob(payReqHeader));
-        } catch {
-          return null;
-        }
-      }
-
-      function findMatchingAccept(accepts, chainId) {
-        const network = CHAIN_TO_NETWORK[chainId];
-        if (!network || !accepts) return null;
-        const arr = Array.isArray(accepts) ? accepts : [accepts];
-        return arr.find((a) => a.network === network) || null;
-      }
-
-      async function buildPaymentSignature(acceptItem, payTo, signer, signerAddress) {
-        const chainId = Number(acceptItem.network.split(":")[1]);
-        const usdcMeta = USDC_META[chainId];
-        if (!usdcMeta) throw new Error("Unsupported chain for browser payment: " + acceptItem.network);
-
-        let amount;
-        if (typeof acceptItem.price === "object" && acceptItem.price.amount) {
-          amount = acceptItem.price.amount;
-        } else if (typeof acceptItem.price === "string") {
-          const numeric = parseFloat(acceptItem.price.replace("$", ""));
-          amount = String(Math.round(numeric * 1_000_000));
-        } else {
-          throw new Error("Cannot parse price from accept item");
-        }
-
-        const validAfter = "0";
-        const validBefore = String(Math.floor(Date.now() / 1000) + 900);
-        const nonce = ethers.hexlify(ethers.randomBytes(32));
-
-        const domain = {
-          name: usdcMeta.name,
-          version: usdcMeta.version,
-          chainId: chainId,
-          verifyingContract: usdcMeta.address
-        };
-
-        const types = {
-          TransferWithAuthorization: [
-            { name: "from", type: "address" },
-            { name: "to", type: "address" },
-            { name: "value", type: "uint256" },
-            { name: "validAfter", type: "uint256" },
-            { name: "validBefore", type: "uint256" },
-            { name: "nonce", type: "bytes32" }
-          ]
-        };
-
-        const message = {
-          from: signerAddress,
-          to: payTo,
-          value: amount,
-          validAfter: validAfter,
-          validBefore: validBefore,
-          nonce: nonce
-        };
-
-        setStatus("Waiting for wallet signature...", "muted");
-        const signature = await signer.signTypedData(domain, types, message);
-
-        const paymentPayload = {
-          x402Version: 2,
-          scheme: "exact",
-          network: acceptItem.network,
-          payload: {
-            signature: signature,
-            authorization: {
-              from: signerAddress,
-              to: payTo,
-              value: amount,
-              validAfter: validAfter,
-              validBefore: validBefore,
-              nonce: nonce
-            }
-          }
-        };
-
-        return btoa(JSON.stringify(paymentPayload));
-      }
-
-      function shortHash(hash) {
-        if (!hash || hash === "pending") return hash || "";
-        return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
-      }
-
-      function explorerUrl(network, txHash) {
-        if (!txHash || txHash === "pending") return null;
-        const map = {
-          "eip155:2741": "https://abscan.org/tx/",
-          "eip155:11124": "https://sepolia.abscan.org/tx/",
-          "eip155:8453": "https://basescan.org/tx/",
-          "eip155:84532": "https://sepolia.basescan.org/tx/"
-        };
-        return map[network] ? `${map[network]}${txHash}` : null;
-      }
-
-      function decodePaymentHeader(value) {
-        try {
-          return JSON.parse(atob(value));
-        } catch {
-          return null;
-        }
-      }
-
-      function setStatus(text, type = "muted") {
-        statusEl.textContent = text;
-        statusEl.className = `status ${type}`;
-      }
-
-      function renderHolder(current) {
-        if (!current.currentHolder) {
-          holderContentEl.innerHTML = '<div class="empty-state">No one is holding the joint yet. Be the first.</div>';
-          return;
-        }
-        holderContentEl.innerHTML = `
-          <div class="holder-handle">@${current.currentHolder}</div>
-          <div class="holder-stats">
-            <div class="holder-stat">
-              <span class="holder-stat-value">${current.totalPasses ?? 0}</span>
-              <span class="holder-stat-label">Total Passes</span>
-            </div>
-            <div class="holder-stat">
-              <span class="holder-stat-value">$${current.passFeeUsd}</span>
-              <span class="holder-stat-label">Pass Fee</span>
-            </div>
-          </div>
-        `;
-      }
-
-      function renderLeaderboard(items) {
-        leaderboardListEl.innerHTML = "";
-        if (!items.length) {
-          leaderboardListEl.innerHTML = '<li class="empty-state">No one on the board yet.</li>';
-          return;
-        }
-
-        const nextRanks = new Map();
-
-        for (const row of items.slice(0, 10)) {
-          const li = document.createElement("li");
-          li.className = "lb-item";
-          nextRanks.set(row.handle, row.rank);
-          if (previousRanks.has(row.handle) && previousRanks.get(row.handle) !== row.rank) {
-            li.classList.add("changed");
-          }
-
-          const badges = Array.isArray(row.badges)
-            ? row.badges.slice(0, 3).map((badge) => `<span class="badge">${badge}</span>`).join("")
-            : "";
-
-          const rankClass = row.rank <= 3 ? "lb-rank top" : "lb-rank";
-
-          li.innerHTML = `
-            <div class="${rankClass}">${row.rank}</div>
-            <div class="lb-info">
-              <div class="lb-handle">@${row.handle}</div>
-              <div class="lb-meta">${row.totalPasses} passes ${badges ? '· ' + badges : ''}</div>
-            </div>
-            <div class="lb-score">${row.score} pts</div>
-          `;
-          leaderboardListEl.appendChild(li);
-        }
-
-        previousRanks = nextRanks;
-      }
-
-      function renderFeed(items, network) {
-        feedListEl.innerHTML = "";
-        if (!items.length) {
-          feedListEl.innerHTML = '<li class="empty-state">No activity yet.</li>';
-          return;
-        }
-
-        for (const item of items.slice(0, 8)) {
-          const li = document.createElement("li");
-          li.className = "feed-item";
-          if (previousTopFeedId && item.id === items[0]?.id && item.id !== previousTopFeedId) {
-            li.classList.add("changed");
-          }
-
-          const txUrl = explorerUrl(network, item.txHash);
-          const txHtml = item.txHash
-            ? item.txHash === "pending"
-              ? '<span class="feed-tx" style="color:var(--text-dim)">tx pending</span>'
-              : txUrl
-                ? `<a class="link feed-tx" href="${txUrl}" target="_blank" rel="noopener noreferrer">${shortHash(item.txHash)}</a>`
-                : `<span class="feed-tx mono" style="color:var(--text-dim)">${shortHash(item.txHash)}</span>`
-            : '';
-
-          const timeStr = new Date(item.createdAt).toLocaleString(undefined, {
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-          });
-
-          li.innerHTML = `
-            <div>
-              <div class="feed-handle">@${item.handle}</div>
-              <div class="feed-detail">${item.gainLine || item.status || "pass logged"}</div>
-            </div>
-            <div class="feed-right">
-              <span class="feed-time">${timeStr}</span>
-              ${txHtml}
-            </div>
-          `;
-          feedListEl.appendChild(li);
-        }
-
-        previousTopFeedId = items[0]?.id || null;
-      }
-
-      async function refreshAll() {
-        const [healthRes, currentRes, leaderboardRes, feedRes] = await Promise.all([
-          fetch("/api/health"),
-          fetch("/api/joint/current"),
-          fetch("/api/leaderboard"),
-          fetch("/api/feed?limit=20")
-        ]);
-
-        const health = await healthRes.json();
-        const current = await currentRes.json();
-        const leaderboard = await leaderboardRes.json();
-        const feed = await feedRes.json();
-
-        const activeNetwork = Array.isArray(health?.x402?.networks)
-          ? health.x402.networks.join(", ")
-          : null;
-
-        renderHolder(current);
-
-        const metaRow = document.getElementById("meta-row");
-        if (activeNetwork) {
-          networkPillEl.textContent = `Network: ${activeNetwork}`;
-          networkPillEl.style.display = "";
-          metaRow.classList.add("visible");
-        } else {
-          networkPillEl.style.display = "none";
-        }
-
-        updatedPillEl.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
-        updatedPillEl.style.display = "";
-        metaRow.classList.add("visible");
-
-        renderLeaderboard(leaderboard.items || []);
-        renderFeed(feed.items || [], health?.x402?.networks?.[0]);
-      }
-
-      passFormEl.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        submitBtnEl.disabled = true;
-
-        const formData = new FormData(passFormEl);
-        const payload = {
-          handle: String(formData.get("handle") || "").trim(),
-          txHash: String(formData.get("txHash") || "").trim() || undefined,
-          message: String(formData.get("message") || "").trim() || undefined
-        };
-
-        try {
-          // If wallet is connected, use the browser payment flow
-          if (walletAddress && walletSigner) {
-            setStatus("Sending request...", "muted");
-
-            // Step 1: POST without payment header to get the 402 response
-            const initialRes = await fetch("/api/joint/pass", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-
-            if (initialRes.status === 402) {
-              // Step 2: Parse the 402 response to get payment requirements
-              const payReq = parsePaymentRequired(initialRes);
-              if (!payReq) throw new Error("Could not parse payment requirements from server.");
-
-              const accepts = payReq.accepts || payReq;
-              const acceptItem = findMatchingAccept(accepts, walletChainId);
-
-              if (!acceptItem) {
-                const supported = (Array.isArray(accepts) ? accepts : [accepts])
-                  .map((a) => CHAIN_NAMES[Number(a.network?.split(":")[1])] || a.network)
-                  .join(", ");
-                throw new Error(
-                  "Your wallet is on " + (CHAIN_NAMES[walletChainId] || "chain " + walletChainId) +
-                  ". Switch to a supported network: " + supported
-                );
-              }
-
-              const payTo = acceptItem.payTo;
-
-              // Step 3: Build and sign the EIP-3009 authorization
-              const paymentSigHeader = await buildPaymentSignature(
-                acceptItem, payTo, walletSigner, walletAddress
-              );
-
-              // Step 4: Re-send with payment signature
-              setStatus("Submitting payment...", "muted");
-              const paidRes = await fetch("/api/joint/pass", {
-                method: "POST",
-                headers: {
-                  "content-type": "application/json",
-                  "payment-signature": paymentSigHeader
-                },
-                body: JSON.stringify(payload)
-              });
-
-              const paidBody = await paidRes.json().catch(() => ({}));
-              if (!paidRes.ok) {
-                throw new Error(paidBody?.error || `Payment failed: HTTP ${paidRes.status}`);
-              }
-
-              const paymentResponse = paidRes.headers.get("payment-response");
-              let successText = `Pass accepted for @${payload.handle}`;
-              if (paymentResponse) {
-                const decoded = decodePaymentHeader(paymentResponse);
-                if (decoded?.transaction) {
-                  const txUrl = explorerUrl(decoded.network, decoded.transaction);
-                  successText = txUrl
-                    ? `Pass accepted! tx: ${shortHash(decoded.transaction)} (${CHAIN_NAMES[walletChainId] || decoded.network})`
-                    : `Pass accepted! tx: ${shortHash(decoded.transaction)}`;
-                }
-              }
-
-              setStatus(successText, "ok");
-              passFormEl.reset();
-              if (typeof window.triggerPassAnimation === "function") window.triggerPassAnimation();
-              await refreshAll();
-              return;
-
-            } else if (initialRes.ok) {
-              setStatus(`Pass accepted for @${payload.handle}`, "ok");
-              passFormEl.reset();
-              if (typeof window.triggerPassAnimation === "function") window.triggerPassAnimation();
-              await refreshAll();
-              return;
-            } else {
-              const body = await initialRes.json().catch(() => ({}));
-              throw new Error(body?.error || `HTTP ${initialRes.status}`);
-            }
-          }
-
-          // No wallet connected - original flow
-          setStatus("Submitting and waiting for payment verification...", "muted");
-          const res = await fetch("/api/joint/pass", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(payload)
-          });
-
-          const body = await res.json().catch(() => ({}));
-          const paymentResponse = res.headers.get("payment-response");
-
-          if (!res.ok) {
-            const errorText = body?.error || `HTTP ${res.status}`;
-            const hint = res.status === 402
-              ? " -- connect a wallet above to pay from your browser"
-              : "";
-            throw new Error(errorText + hint);
-          }
-
-          let successText = `Pass accepted for @${payload.handle}`;
-          if (paymentResponse) {
-            const decoded = decodePaymentHeader(paymentResponse);
-            if (decoded?.transaction) {
-              const txUrl = explorerUrl(decoded.network, decoded.transaction);
-              successText = txUrl
-                ? `Pass accepted for @${payload.handle} -- tx: ${shortHash(decoded.transaction)} (${decoded.network})`
-                : `Pass accepted for @${payload.handle} -- tx: ${shortHash(decoded.transaction)}`;
-            }
-          }
-
-          setStatus(successText, "ok");
-          passFormEl.reset();
-          if (typeof window.triggerPassAnimation === "function") window.triggerPassAnimation();
-          await refreshAll();
-        } catch (error) {
-          setStatus(error.message || String(error), "error");
-        } finally {
-          submitBtnEl.disabled = false;
-        }
+  </section>
+</main>
+
+<section class="feed-section">
+  <div class="feed-inner">
+    <div class="feed-title">recent activity</div>
+    <ul class="feed-list" id="feed-list"><li class="lb-empty">no activity yet.</li></ul>
+  </div>
+</section>
+
+<section class="how-section">
+  <div class="how-inner">
+    <h2 class="how-title">how to get on the leaderboard</h2>
+    <ol class="how-steps">
+      <li class="how-step"><div class="how-num">1</div><div class="how-step-body"><div class="h">connect wallet</div><div class="p">metamask or any browser wallet on <a href="#">base</a> or <a href="#">abstract</a>.</div></div></li>
+      <li class="how-step"><div class="how-num">2</div><div class="how-step-body"><div class="h">sign, don't send</div><div class="p">one click signs an EIP-3009 <code>transferWithAuthorization</code> for $0.00402 USDC. a signature, not a transaction. no gas from your wallet.</div></div></li>
+      <li class="how-step"><div class="how-num">3</div><div class="how-step-body"><div class="h">settled over <span class="x402-chip sm"><span class="x">x</span>402</span></div><div class="p">our server returns HTTP 402, your wallet answers with the signed payload, the facilitator settles on-chain. you're the new holder in ~2 seconds.</div></div></li>
+      <li class="how-step"><div class="how-num">4</div><div class="how-step-body"><div class="h">hold it</div><div class="p">you keep the joint until someone else pays to take it. longer you hold, higher you climb the board.</div></div></li>
+    </ol>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer class="site">
+    <span>powered by <a href="https://x402.org" target="_blank" rel="noopener"><span style="color:var(--text-dim)">x</span>402</a></span>
+    <span><a href="#" id="tweaks-trigger">pack a bowl</a> · <a href="https://github.com/tyler-james-bridges/puff-puff-pass" target="_blank" rel="noopener">github</a></span>
+  </footer>
+</div>
+
+<aside class="tweaks" id="tweaks">
+  <div class="tweaks-head">
+    <span class="tweaks-title">~ pack a bowl <span class="badge">live</span></span>
+    <button class="tweaks-close" id="tweaks-close">×</button>
+  </div>
+  <div class="tweaks-body">
+    <div class="tweak-group">
+      <span class="tweak-label">Rig <span class="v" id="val-rig">joint</span></span>
+      <div class="rig-grid" id="rig-grid">
+        <button type="button" class="rig-tile active" data-rig="joint" title="joint">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 17.5 L24 15" stroke-width="2.4"/>
+            <path d="M5 17.5 L9 17" stroke="#a07a4a" stroke-width="2.6"/>
+            <circle cx="25.2" cy="14.6" r="1.6" fill="#ff7a2e" stroke="none"/>
+            <path d="M25.5 12.5 Q26.5 10, 25.8 8 Q27 7, 26.5 5" opacity=".45"/>
+          </svg>
+          <span class="lbl">joint</span>
+        </button>
+        <button type="button" class="rig-tile" data-rig="blunt" title="blunt">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="14" width="20" height="5" rx="1.2" fill="#6b4a2a" stroke="#8a6038"/>
+            <circle cx="26.2" cy="16.5" r="1.8" fill="#ff7a2e" stroke="none"/>
+            <path d="M26.5 14.5 Q27.5 12, 26.8 10" opacity=".45"/>
+          </svg>
+          <span class="lbl">blunt</span>
+        </button>
+        <button type="button" class="rig-tile" data-rig="bong" title="bong">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 4 L13 14 L9.5 22 Q9 26.5, 16 26.5 Q23 26.5, 22.5 22 L19 14 L19 4 Z"/>
+            <line x1="13" y1="10" x2="19" y2="10"/>
+            <path d="M19 14 L24 12 L25 10"/>
+            <circle cx="25" cy="9.5" r="1.1" fill="#ff7a2e" stroke="none"/>
+          </svg>
+          <span class="lbl">bong</span>
+        </button>
+        <button type="button" class="rig-tile" data-rig="dab" title="dab rig">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="15" cy="22" r="5.5"/>
+            <path d="M15 16.5 L15 10"/>
+            <path d="M12 10 L18 10"/>
+            <path d="M18 12 L23 10 L23 7"/>
+            <circle cx="23" cy="6.5" r="1.1" fill="#ff7a2e" stroke="none"/>
+          </svg>
+          <span class="lbl">dab</span>
+        </button>
+        <button type="button" class="rig-tile" data-rig="vape" title="vape pen">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="13" y="10" width="6" height="15" rx="1.2"/>
+            <rect x="14" y="6" width="4" height="4" rx=".8" fill="currentColor" opacity=".3" stroke="none"/>
+            <line x1="14.5" y1="21" x2="17.5" y2="21" opacity=".5"/>
+            <circle cx="16" cy="4.8" r="1.1" fill="#ff7a2e" stroke="none"/>
+          </svg>
+          <span class="lbl">vape</span>
+        </button>
+      </div>
+    </div>
+    <div class="tweak-group">
+      <span class="tweak-label">Smoke <span class="v" id="val-density">normal</span></span>
+      <div class="tweak-chips" id="chips-density">
+        <button type="button" class="tweak-chip" data-density="4">light</button>
+        <button type="button" class="tweak-chip active" data-density="10">normal</button>
+        <button type="button" class="tweak-chip" data-density="16">thick</button>
+      </div>
+    </div>
+    <div class="tweak-group">
+      <span class="tweak-label">Strain <span class="v" id="val-strain">og kush</span></span>
+      <div class="tweak-chips" id="chips-strain">
+        <button type="button" class="tweak-chip active" data-strain="og kush"    data-smoke="#a8d4a0" data-ember="#ff7a2e">og kush</button>
+        <button type="button" class="tweak-chip" data-strain="sour diesel"  data-smoke="#d6e08c" data-ember="#ffb347">sour diesel</button>
+        <button type="button" class="tweak-chip" data-strain="blue dream"   data-smoke="#b8d4e8" data-ember="#ff9060">blue dream</button>
+        <button type="button" class="tweak-chip" data-strain="gelato"       data-smoke="#e8c8d4" data-ember="#ff6040">gelato</button>
+        <button type="button" class="tweak-chip" data-strain="purple haze"  data-smoke="#d4b8e8" data-ember="#ff5080">purple haze</button>
+        <button type="button" class="tweak-chip" data-strain="wedding cake" data-smoke="#e8e0d0" data-ember="#ffc080">wedding cake</button>
+        <button type="button" class="tweak-chip" data-strain="runtz"        data-smoke="#c8e8a8" data-ember="#ffd040">runtz</button>
+        <button type="button" class="tweak-chip" data-strain="zkittlez"     data-smoke="#d8b8d0" data-ember="#ff7090">zkittlez</button>
+      </div>
+    </div>
+    <div class="tweak-footer">
+      <span>saved on change</span>
+      <button id="reset-bowl">reset</button>
+    </div>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+
+<script>
+/* ============================================================
+   AMBIENT SMOKE — full-page fBM fragment shader
+============================================================ */
+(function(){
+  const canvas = document.getElementById('ambient');
+  const gl = canvas.getContext('webgl', { premultipliedAlpha:true, antialias:false, alpha:true });
+  if (!gl) { canvas.style.display='none'; return; }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
+  const fs = `
+    precision mediump float;
+    uniform vec2 uRes;
+    uniform float uT;
+    uniform vec3 uSmoke;
+    uniform float uIntensity;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+    float vnoise(vec2 p){
+      vec2 i = floor(p), f = fract(p);
+      float a = hash(i), b = hash(i+vec2(1.,0.)), c = hash(i+vec2(0.,1.)), d = hash(i+vec2(1.,1.));
+      vec2 u = f*f*(3.-2.*f);
+      return mix(mix(a,b,u.x), mix(c,d,u.x), u.y);
+    }
+    float fbm(vec2 p){
+      float v = 0., a = .5;
+      for (int i=0; i<5; i++){ v += a*vnoise(p); p *= 2.02; a *= .5; }
+      return v;
+    }
+    void main(){
+      vec2 uv = gl_FragCoord.xy / uRes.xy;
+      vec2 p = uv * vec2(uRes.x/uRes.y, 1.) * 2.;
+      float t = uT * 0.11;
+      float n1 = fbm(p*1.1 + vec2(t*1.2, -t*.7));
+      float n2 = fbm(p*2.0 + vec2(-t*.9, t*.6) + n1*.6);
+      float n3 = fbm(p*3.8 + vec2(t*.4, t*1.1) + n2*.4);
+      float smoke = pow(smoothstep(.22, .95, n2*.6 + n1*.45 + n3*.25), 1.25);
+      float vig = smoothstep(1.5, .1, distance(uv, vec2(.35, .4)));
+      smoke *= vig;
+      float warm = smoothstep(.45, 0., distance(uv, vec2(.28, .45))) * .25;
+      vec3 col = uSmoke * smoke;
+      col += vec3(1.0, .45, .15) * warm * smoke;
+      float a = smoke * uIntensity;
+      gl_FragColor = vec4(col * a, a * .8);
+    }
+  `;
+  function mk(type, src){ const s=gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ console.error(gl.getShaderInfoLog(s)); } return s; }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, mk(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, mk(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const locP = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(locP);
+  gl.vertexAttribPointer(locP, 2, gl.FLOAT, false, 0, 0);
+
+  const uRes = gl.getUniformLocation(prog, 'uRes');
+  const uT   = gl.getUniformLocation(prog, 'uT');
+  const uSmoke = gl.getUniformLocation(prog, 'uSmoke');
+  const uIntensity = gl.getUniformLocation(prog, 'uIntensity');
+
+  let smokeCol = [.66, .83, .63];
+  let intensity = 1.0;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    canvas.width = Math.floor(innerWidth*dpr);
+    canvas.height = Math.floor(innerHeight*dpr);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const start = performance.now();
+  function frame(){
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uT, (performance.now()-start)/1000);
+    gl.uniform3f(uSmoke, smokeCol[0], smokeCol[1], smokeCol[2]);
+    gl.uniform1f(uIntensity, intensity);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  if (reduced){ frame(); } else requestAnimationFrame(frame);
+
+  window.ambientSet = (rgb, i) => {
+    if (rgb) smokeCol = rgb;
+    if (i != null) intensity = i;
+  };
+})();
+
+/* ============================================================
+   WALLET + x402 payment flow (ported from original app)
+============================================================ */
+const CHAIN_NAMES = {
+  8453: "base", 2741: "abstract", 84532: "base sepolia", 11124: "abstract testnet"
+};
+const CHAIN_TO_NETWORK = {
+  8453: "eip155:8453", 2741: "eip155:2741", 84532: "eip155:84532", 11124: "eip155:11124"
+};
+const USDC_META = {
+  8453:  { address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", name: "USD Coin",                 version: "2", decimals: 6 },
+  2741:  { address: "0x84a71ccd554cc1b02749b35d22f684cc8ec987e1", name: "Bridged USDC (Stargate)",  version: "2", decimals: 6 },
+  84532: { address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", name: "USDC",                     version: "2", decimals: 6 }
+};
+
+let walletProvider = null, walletSigner = null, walletAddress = null, walletChainId = null;
+
+const walletChipEl = document.getElementById('wallet-chip');
+const walletChipLabelEl = document.getElementById('wallet-chip-label');
+const passBtnEl = document.getElementById('pass-btn');
+const passFormEl = document.getElementById('pass-form');
+const handleInputEl = document.getElementById('handle-input');
+const passStatusEl = document.getElementById('pass-status');
+
+function shortAddress(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : ''; }
+function setStatus(text, kind){
+  passStatusEl.textContent = text;
+  passStatusEl.className = 'pass-status' + (kind ? ' '+kind : '');
+}
+function renderWallet(){
+  if (!walletAddress){
+    walletChipEl.classList.remove('connected');
+    walletChipLabelEl.textContent = 'connect wallet';
+    setStatus('connect wallet to pass');
+    return;
+  }
+  walletChipEl.classList.add('connected');
+  const chain = CHAIN_NAMES[walletChainId] || `chain ${walletChainId}`;
+  walletChipLabelEl.textContent = `${shortAddress(walletAddress)} · ${chain}`;
+  setStatus('ready to pass.', 'ok');
+}
+async function connectWallet(){
+  if (typeof window.ethereum === 'undefined'){
+    setStatus('no wallet detected. install metamask or a compatible wallet.', 'error');
+    return;
+  }
+  try {
+    walletProvider = new ethers.BrowserProvider(window.ethereum);
+    walletSigner = await walletProvider.getSigner();
+    walletAddress = await walletSigner.getAddress();
+    const net = await walletProvider.getNetwork();
+    walletChainId = Number(net.chainId);
+    renderWallet();
+    window.ethereum.on('accountsChanged', onAccountsChanged);
+    window.ethereum.on('chainChanged', onChainChanged);
+  } catch(err){
+    setStatus('connect failed: ' + (err.message || String(err)), 'error');
+  }
+}
+function onAccountsChanged(accs){ if (!accs.length){ disconnectWallet(); return; } walletAddress = accs[0]; renderWallet(); }
+function onChainChanged(){ connectWallet(); }
+function disconnectWallet(){
+  walletProvider = walletSigner = walletAddress = walletChainId = null;
+  if (window.ethereum){
+    window.ethereum.removeListener('accountsChanged', onAccountsChanged);
+    window.ethereum.removeListener('chainChanged', onChainChanged);
+  }
+  renderWallet();
+}
+walletChipEl.addEventListener('click', () => {
+  if (walletAddress) disconnectWallet(); else connectWallet();
+});
+
+function parsePaymentRequired(res){
+  const h = res.headers.get('payment-required');
+  if (!h) return null;
+  try { return JSON.parse(atob(h)); } catch { return null; }
+}
+function findMatchingAccept(accepts, chainId){
+  const net = CHAIN_TO_NETWORK[chainId];
+  if (!net || !accepts) return null;
+  const arr = Array.isArray(accepts) ? accepts : [accepts];
+  return arr.find(a => a.network === net) || null;
+}
+async function buildPaymentSignature(acceptItem, payTo, signer, signerAddress){
+  const chainId = Number(acceptItem.network.split(':')[1]);
+  const meta = USDC_META[chainId];
+  if (!meta) throw new Error('unsupported chain: ' + acceptItem.network);
+
+  let amount;
+  if (typeof acceptItem.price === 'object' && acceptItem.price.amount){
+    amount = acceptItem.price.amount;
+  } else if (typeof acceptItem.price === 'string'){
+    const n = parseFloat(acceptItem.price.replace('$',''));
+    amount = String(Math.round(n * 1_000_000));
+  } else {
+    throw new Error('cannot parse price');
+  }
+
+  const validAfter = '0';
+  const validBefore = String(Math.floor(Date.now()/1000) + 900);
+  const nonce = ethers.hexlify(ethers.randomBytes(32));
+  const domain = { name: meta.name, version: meta.version, chainId, verifyingContract: meta.address };
+  const types = { TransferWithAuthorization: [
+    { name:'from', type:'address' }, { name:'to', type:'address' }, { name:'value', type:'uint256' },
+    { name:'validAfter', type:'uint256' }, { name:'validBefore', type:'uint256' }, { name:'nonce', type:'bytes32' }
+  ]};
+  const message = { from: signerAddress, to: payTo, value: amount, validAfter, validBefore, nonce };
+
+  setStatus('waiting for wallet signature…');
+  const signature = await signer.signTypedData(domain, types, message);
+
+  const payload = {
+    x402Version: 2, scheme: 'exact', network: acceptItem.network,
+    payload: { signature, authorization: { from: signerAddress, to: payTo, value: amount, validAfter, validBefore, nonce } }
+  };
+  return btoa(JSON.stringify(payload));
+}
+
+passFormEl.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const handle = handleInputEl.value.trim();
+  if (!handle){ setStatus('enter a handle first', 'error'); return; }
+  if (!walletAddress){ await connectWallet(); if (!walletAddress) return; }
+
+  passBtnEl.disabled = true;
+  const originalHTML = passBtnEl.innerHTML;
+  passBtnEl.innerHTML = '<span class="pass-main">signing…</span>';
+
+  try {
+    // 1. First call — expect 402
+    let res = await fetch('/api/joint/pass', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ handle })
+    });
+
+    if (res.status === 402){
+      const payReq = parsePaymentRequired(res);
+      if (!payReq) throw new Error('no payment-required header');
+      const accept = findMatchingAccept(payReq.accepts, walletChainId);
+      if (!accept) throw new Error(`wallet on ${CHAIN_NAMES[walletChainId] || walletChainId}, server wants ${(payReq.accepts||[]).map(a=>a.network).join(', ')}`);
+      const payTo = accept.payTo || accept.to || payReq.payTo;
+      if (!payTo) throw new Error('no payTo in accept');
+
+      const paymentHeader = await buildPaymentSignature(accept, payTo, walletSigner, walletAddress);
+      setStatus('settling payment…');
+      passBtnEl.innerHTML = '<span class="pass-main">settling…</span>';
+
+      res = await fetch('/api/joint/pass', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'payment-signature': paymentHeader },
+        body: JSON.stringify({ handle })
       });
+    }
 
-      document.getElementById("refresh-btn").addEventListener("click", () => {
-        refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
-      });
+    if (!res.ok){
+      const text = await res.text();
+      throw new Error(`server ${res.status}: ${text.slice(0,160)}`);
+    }
+    setStatus(`you're holding the joint. @${handle}`, 'ok');
+    rigFlare();
+    handleInputEl.value = '';
+    refreshAll();
+  } catch (err){
+    setStatus(err.message || String(err), 'error');
+  } finally {
+    passBtnEl.disabled = false;
+    passBtnEl.innerHTML = originalHTML;
+  }
+});
 
-      setInterval(() => {
-        if (!autoRefresh || submitBtnEl.disabled) return;
-        refreshAll().catch(() => {});
-      }, 8000);
+/* ============================================================
+   API polling + render
+============================================================ */
+const avatarUrl = h => `https://unavatar.io/x/${encodeURIComponent(h)}`;
+const pad = n => String(n).padStart(2,'0');
+function fmtHold(sec){ const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60); if(h>0)return `${h}h ${pad(m)}m ${pad(s)}s`; if(m>0)return `${m}m ${pad(s)}s`; return `${s}s`; }
 
-      autoToggleEl.addEventListener("click", () => {
-        autoRefresh = !autoRefresh;
-        autoDotEl.className = autoRefresh ? "dot" : "dot off";
-        autoLabelEl.textContent = autoRefresh ? "auto" : "paused";
-      });
+let lbMode = 'score';
+let activeNetwork = null;
+let holderSince = null;
+let holderHandle = null;
 
-      refreshAll().catch((error) => setStatus(error.message || String(error), "error"));
-    </script>
-  </body>
+const holderHandleEl = document.getElementById('holder-handle');
+const holderBioEl = document.getElementById('holder-bio');
+const avatarImgEl = document.getElementById('avatar-img');
+const avatarFbEl = document.getElementById('avatar-fb');
+const statPassesEl = document.getElementById('stat-passes');
+const statFeeEl = document.getElementById('stat-fee');
+const holdH = document.getElementById('hold-h');
+const holdM = document.getElementById('hold-m');
+const holdS = document.getElementById('hold-s');
+const lbListEl = document.getElementById('lb-list');
+const feedListEl = document.getElementById('feed-list');
+
+function setAvatar(handle){
+  if (!handle){
+    avatarImgEl.style.display = 'none';
+    avatarFbEl.style.display = 'flex';
+    avatarFbEl.textContent = '·';
+    return;
+  }
+  avatarFbEl.textContent = handle[0].toUpperCase();
+  avatarFbEl.style.display = 'flex';
+  avatarImgEl.onload = () => { avatarFbEl.style.display = 'none'; avatarImgEl.style.display = 'block'; };
+  avatarImgEl.onerror = () => { avatarImgEl.style.display = 'none'; avatarFbEl.style.display = 'flex'; };
+  avatarImgEl.src = avatarUrl(handle);
+}
+
+function renderHolder(current){
+  if (!current || !current.currentHolder){
+    holderHandleEl.textContent = 'nobody';
+    holderBioEl.textContent = 'no one is holding the joint yet. be the first.';
+    statPassesEl.textContent = '0';
+    statFeeEl.textContent = '$' + (current?.passFeeUsd ?? '0.00402');
+    holderSince = null;
+    holderHandle = null;
+    setAvatar(null);
+    return;
+  }
+  holderHandleEl.textContent = current.currentHolder;
+  holderBioEl.textContent = current.currentMessage || 'currently holding the joint.';
+  statPassesEl.textContent = current.totalPasses ?? 0;
+  statFeeEl.textContent = '$' + (current.passFeeUsd ?? '0.00402');
+  if (holderHandle !== current.currentHolder){
+    holderHandle = current.currentHolder;
+    setAvatar(current.currentHolder);
+  }
+  holderSince = current.currentSince ? new Date(current.currentSince).getTime() : Date.now();
+}
+
+function tickHold(){
+  if (!holderSince){ holdH.textContent='0'; holdM.textContent='00'; holdS.textContent='00'; return; }
+  const sec = Math.max(0, Math.floor((Date.now() - holderSince)/1000));
+  holdH.textContent = String(Math.floor(sec/3600));
+  holdM.textContent = pad(Math.floor((sec%3600)/60));
+  holdS.textContent = pad(sec%60);
+}
+setInterval(tickHold, 1000);
+
+function renderLeaderboard(items){
+  if (!items || !items.length){
+    lbListEl.innerHTML = '<li class="lb-empty">no one on the board yet.</li>';
+    return;
+  }
+  const rows = items.slice(0, 10);
+  lbListEl.innerHTML = rows.map((r, i) => {
+    const metric = lbMode === 'passes'
+      ? `${r.totalPasses || 0} passes`
+      : `${r.score ?? 0} pts`;
+    const secondary = lbMode === 'passes'
+      ? `${r.score ?? 0} pts`
+      : `${r.totalPasses || 0} passes`;
+    const rankLabel = i === 0 ? '★' : `#${i+1}`;
+    return `<li class="lb-row ${i===0?'is-first':''}">
+      <span class="lb-rank">${rankLabel}</span>
+      <span class="lb-avatar">
+        <div class="fb">${r.handle[0].toUpperCase()}</div>
+        <img src="${avatarUrl(r.handle)}" alt="" loading="lazy" onload="this.previousElementSibling.style.display='none'" onerror="this.style.display='none'"/>
+      </span>
+      <span class="lb-handle"><span class="at">@</span>${r.handle}</span>
+      <span class="lb-spent">${secondary}</span>
+      <span class="lb-metric">${metric}</span>
+    </li>`;
+  }).join('');
+}
+
+document.getElementById('lb-toggle').addEventListener('click', e => {
+  const b = e.target.closest('button[data-mode]'); if (!b) return;
+  document.querySelectorAll('#lb-toggle button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  lbMode = b.dataset.mode;
+  refreshAll();
+});
+
+function explorerUrl(network, txHash){
+  if (!txHash || txHash === 'pending') return null;
+  const map = {
+    'eip155:2741':  'https://abscan.org/tx/',
+    'eip155:11124': 'https://sepolia.abscan.org/tx/',
+    'eip155:8453':  'https://basescan.org/tx/',
+    'eip155:84532': 'https://sepolia.basescan.org/tx/'
+  };
+  return map[network] ? map[network] + txHash : null;
+}
+function shortHash(h){ return h ? `${h.slice(0,8)}…${h.slice(-4)}` : ''; }
+
+function renderFeed(items){
+  if (!items || !items.length){
+    feedListEl.innerHTML = '<li class="lb-empty">no activity yet.</li>';
+    return;
+  }
+  feedListEl.innerHTML = items.slice(0, 10).map(item => {
+    const url = explorerUrl(activeNetwork, item.txHash);
+    const txHtml = item.txHash
+      ? (item.txHash === 'pending'
+          ? '<span class="feed-tx">tx pending</span>'
+          : (url
+              ? `<a class="feed-tx" href="${url}" target="_blank" rel="noopener">${shortHash(item.txHash)}</a>`
+              : `<span class="feed-tx">${shortHash(item.txHash)}</span>`))
+      : '';
+    const t = new Date(item.createdAt);
+    const timeStr = t.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `<li class="feed-item">
+      <div>
+        <div class="feed-handle"><span class="at">@</span>${item.handle}</div>
+        <div class="feed-detail">${item.gainLine || item.status || 'pass logged'}</div>
+      </div>
+      <div class="feed-right">
+        <span class="feed-time">${timeStr}</span>
+        ${txHtml}
+      </div>
+    </li>`;
+  }).join('');
+}
+
+async function refreshAll(){
+  try {
+    const [h, c, l, f] = await Promise.all([
+      fetch('/api/health').then(r=>r.json()).catch(()=>null),
+      fetch('/api/joint/current').then(r=>r.json()).catch(()=>null),
+      fetch('/api/leaderboard').then(r=>r.json()).catch(()=>null),
+      fetch('/api/feed?limit=20').then(r=>r.json()).catch(()=>null)
+    ]);
+    if (h && Array.isArray(h.x402?.networks) && h.x402.networks.length){
+      activeNetwork = h.x402.networks[0];
+    }
+    renderHolder(c);
+    const lb = Array.isArray(l) ? l : (l?.items || []);
+    // client-side sort for toggle
+    const sorted = [...lb].sort((a,b) => lbMode === 'passes' ? (b.totalPasses||0)-(a.totalPasses||0) : (b.score||0)-(a.score||0));
+    renderLeaderboard(sorted);
+    const feed = Array.isArray(f) ? f : (f?.items || []);
+    renderFeed(feed);
+  } catch(err){
+    console.error('refresh failed', err);
+  }
+}
+refreshAll();
+setInterval(refreshAll, 8000);
+
+/* ============================================================
+   TWEAKS (pack a bowl)
+============================================================ */
+window.rigFlare = function rigFlare(){
+  const dot = document.getElementById('rig-ember');
+  if (!dot || !dot.animate) return;
+  dot.animate(
+    [{ transform:'scale(1)', filter:'brightness(1)' },
+     { transform:'scale(1.6)', filter:'brightness(1.6)' },
+     { transform:'scale(1)', filter:'brightness(1)' }],
+    { duration: 700, easing: 'ease-out' }
+  );
+};
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "rig": "joint",
+  "strain": "og kush",
+  "density": 10
+}/*EDITMODE-END*/;
+
+const tweaksEl = document.getElementById('tweaks');
+document.getElementById('tweaks-trigger').addEventListener('click', e => { e.preventDefault(); tweaksEl.classList.toggle('open'); });
+document.getElementById('tweaks-close').addEventListener('click', () => tweaksEl.classList.remove('open'));
+window.addEventListener('message', ev => {
+  if (ev.data && ev.data.type === '__activate_edit_mode') tweaksEl.classList.add('open');
+  if (ev.data && ev.data.type === '__deactivate_edit_mode') tweaksEl.classList.remove('open');
+});
+try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(_){}
+function persist(edits){ try { window.parent.postMessage({type:'__edit_mode_set_keys', edits}, '*'); } catch(_){} }
+
+function hexToRgb(h){ const n = parseInt(h.replace('#',''),16); return [(n>>16)&255,(n>>8)&255,n&255]; }
+function rgbNorm(rgb){ return rgb.map(v=>v/255); }
+
+let STATE = {...TWEAK_DEFAULTS};
+
+function applyAll(){
+  const strainBtn = document.querySelector(`.tweak-chip[data-strain="${STATE.strain}"]`) || document.querySelector('.tweak-chip[data-strain="og kush"]');
+  const smokeHex = strainBtn.dataset.smoke;
+  const emberHex = strainBtn.dataset.ember;
+  const smokeRgb = hexToRgb(smokeHex);
+  const rigMult = { joint:1, blunt:1.1, bong:1.2, dab:1.35, vape:0.35 }[STATE.rig] ?? 1;
+  const base = STATE.density / 10;
+  const ambientIntensity = 0.45 + base * 0.35 * Math.min(rigMult, 1.15);
+  if (window.ambientSet) window.ambientSet(rgbNorm(smokeRgb).map(v=>0.55 + v*0.45), ambientIntensity);
+  document.documentElement.style.setProperty('--ember', emberHex);
+  document.getElementById('rig-card-rig').textContent = STATE.rig;
+  document.getElementById('rig-card-strain').textContent = STATE.strain;
+  document.getElementById('val-rig').textContent = STATE.rig;
+  document.getElementById('val-strain').textContent = STATE.strain;
+  const densityLabel = STATE.density <= 4 ? 'light' : STATE.density >= 16 ? 'thick' : 'normal';
+  document.getElementById('val-density').textContent = densityLabel;
+}
+
+function wireChips(id, attr){
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('.tweak-chip, .rig-tile'); if (!b) return;
+    el.querySelectorAll('.tweak-chip, .rig-tile').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const val = b.dataset[attr];
+    STATE[attr] = val;
+    persist({[attr]: val});
+    applyAll();
+  });
+}
+wireChips('rig-grid', 'rig');
+wireChips('chips-strain', 'strain');
+
+document.getElementById('chips-density').addEventListener('click', e => {
+  const b = e.target.closest('.tweak-chip'); if (!b) return;
+  document.getElementById('chips-density').querySelectorAll('.tweak-chip').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  STATE.density = parseInt(b.dataset.density, 10);
+  persist({density: STATE.density});
+  applyAll();
+});
+
+document.getElementById('reset-bowl').addEventListener('click', () => {
+  STATE = {rig:'joint', strain:'og kush', density:10};
+  document.querySelectorAll('.rig-tile, .tweak-chip').forEach(b => b.classList.remove('active'));
+  document.querySelector('.rig-tile[data-rig="joint"]').classList.add('active');
+  document.querySelector('.tweak-chip[data-strain="og kush"]').classList.add('active');
+  document.querySelector('.tweak-chip[data-density="10"]').classList.add('active');
+  persist(STATE); applyAll();
+});
+
+function setActive(container, attr, val){
+  document.getElementById(container).querySelectorAll('.tweak-chip, .rig-tile').forEach(b => {
+    b.classList.toggle('active', (b.dataset[attr] ?? '') === String(val));
+  });
+}
+setActive('rig-grid', 'rig', STATE.rig);
+setActive('chips-strain', 'strain', STATE.strain);
+setActive('chips-density', 'density', String(STATE.density));
+applyAll();
+</script>
+</body>
 </html>
