@@ -17,7 +17,7 @@ import {
   PAY_TO,
   X402_NETWORKS,
 } from "./config";
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getStore } from "./store";
 
@@ -179,8 +179,9 @@ export function withPayPass(
       return handler(req);
     }
 
-    // payment-verified: run handler then settle
-    const response = await handler(req);
+    // payment-verified: settle FIRST to get tx hash, then run handler
+    let txHash = "pending";
+    let settlementObj: any = null;
 
     try {
       const settlement = await server.processSettlement(
@@ -197,32 +198,37 @@ export function withPayPass(
           },
         }
       );
+      settlementObj = settlement;
 
-      const txHash = settlement.transaction || (settlement as any).txHash || (settlement as any).transactionHash;
-      if (settlement.success && txHash) {
-        try {
-          const body = await req.clone().json();
-          const handle = body?.handle;
-          if (handle) {
-            const store = await getStore();
-            await store.backfillLatestPendingTxHash(handle, txHash);
-          }
-        } catch (e: any) {
-          console.error("[x402] backfill error:", e?.message || String(e));
-        }
+      const settled = settlement.transaction || (settlement as any).txHash || (settlement as any).transactionHash;
+      if (settlement.success && settled) {
+        txHash = settled;
       } else {
         console.warn("[x402] no tx in settlement:", JSON.stringify(settlement).slice(0, 500));
       }
-
-      const paymentResponse = Buffer.from(
-        JSON.stringify(settlement)
-      ).toString("base64");
-      response.headers.set("Payment-Response", paymentResponse);
     } catch (settleErr: any) {
       console.error(
         "[x402] settle error:",
         settleErr?.message || String(settleErr)
       );
+    }
+
+    // Inject txHash into the request body for the handler
+    const origBody = await req.clone().json().catch(() => ({}));
+    origBody.txHash = txHash;
+    const modifiedReq = new NextRequest(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: JSON.stringify(origBody),
+    });
+
+    const response = await handler(modifiedReq);
+
+    if (settlementObj) {
+      const paymentResponse = Buffer.from(
+        JSON.stringify(settlementObj)
+      ).toString("base64");
+      response.headers.set("Payment-Response", paymentResponse);
     }
 
     return response;
