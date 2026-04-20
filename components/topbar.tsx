@@ -17,7 +17,7 @@ export function TopBar() {
         <span className="wallet-slot">
           <ConnectButton
             accountStatus={{ smallScreen: "avatar", largeScreen: "address" }}
-            chainStatus={{ smallScreen: "icon", largeScreen: "icon" }}
+            chainStatus="none"
             showBalance={false}
             label="connect wallet"
           />

@@ -39,8 +39,9 @@ const STRAINS = [
   "pineapple express",
 ];
 
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function seededPick<T>(arr: T[], seed: string): T {
+  const hash = [...seed].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return arr[hash % arr.length];
 }
 
 export default function Home() {
@@ -48,8 +49,9 @@ export default function Home() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [health, setHealth] = useState<HealthInfo | null>(null);
-  const [rig] = useState(() => pick(RIGS));
-  const [strain] = useState(() => pick(STRAINS));
+  const holder = current?.currentHolder || "nobody";
+  const rig = seededPick(RIGS, holder + "-rig");
+  const strain = seededPick(STRAINS, holder + "-strain");
 
   const refresh = useCallback(async () => {
     try {

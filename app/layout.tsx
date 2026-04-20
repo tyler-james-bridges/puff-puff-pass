@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "puff puff pass",
   description:
     "x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard.",
+  icons: {
+    icon: "/favicon.svg",
+  },
   openGraph: {
     title: "Puff Puff Pass",
     description:
