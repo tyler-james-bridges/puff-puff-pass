@@ -22,8 +22,9 @@ import { NextResponse } from "next/server";
 import { getStore } from "./store";
 
 let _httpServer: x402HTTPResourceServer | null = null;
+let _initPromise: Promise<void> | null = null;
 
-function getX402Server(): x402HTTPResourceServer {
+async function getX402Server(): Promise<x402HTTPResourceServer> {
   if (_httpServer) return _httpServer;
 
   const cdpHeadersFactory = createCdpAuthHeadersFactory({
@@ -101,6 +102,18 @@ function getX402Server(): x402HTTPResourceServer {
   };
 
   _httpServer = new x402HTTPResourceServer(resourceServer, routesConfig as any);
+
+  // Must initialize to fetch supported schemes from facilitators
+  if (!_initPromise) {
+    _initPromise = resourceServer.initialize().catch((err: any) => {
+      console.error("[x402] initialize error:", err?.message || String(err));
+      _httpServer = null;
+      _initPromise = null;
+      throw err;
+    });
+  }
+  await _initPromise;
+
   return _httpServer;
 }
 
@@ -131,7 +144,7 @@ export function withPayPass(
   handler: (req: NextRequest) => Promise<NextResponse>
 ) {
   return async (req: NextRequest): Promise<NextResponse> => {
-    const server = getX402Server();
+    const server = await getX402Server();
     const adapter = makeAdapter(req);
 
     const result = await server.processHTTPRequest({
