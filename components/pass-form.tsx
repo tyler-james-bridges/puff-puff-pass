@@ -142,8 +142,7 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
 
     const payload = {
       x402Version: 2,
-      scheme: "exact",
-      network: accept.network,
+      accepted: accept,
       payload: {
         signature,
         authorization: {
