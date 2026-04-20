@@ -89,8 +89,10 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
     if (!meta) throw new Error("unsupported chain: " + accept.network);
 
     let amount: string;
-    if (typeof accept.price === "object" && accept.price?.amount) {
-      amount = String(accept.price.amount);
+    if (typeof (accept as any).amount === "string") {
+      amount = String((accept as any).amount);
+    } else if (typeof accept.price === "object" && (accept.price as any)?.amount) {
+      amount = String((accept.price as any).amount);
     } else if (typeof accept.price === "string") {
       const n = parseFloat(accept.price.replace("$", ""));
       amount = String(Math.round(n * 1_000_000));
