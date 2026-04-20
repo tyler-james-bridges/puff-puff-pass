@@ -14,8 +14,6 @@ export function TopBar() {
       </span>
       <nav className="topnav">
         <span className="live">live</span>
-        <a href="#leaderboard">leaderboard</a>
-        <a href="/openapi.json">api</a>
         <span className="wallet-slot">
           <ConnectButton
             accountStatus={{ smallScreen: "avatar", largeScreen: "address" }}
