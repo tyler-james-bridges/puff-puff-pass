@@ -5,48 +5,16 @@ import {
   useAccount,
   useChainId,
   useConnect,
-  useSignTypedData,
+  useWalletClient,
+  usePublicClient,
 } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { CHAIN_NAMES, CHAIN_TO_NETWORK, USDC_META } from "@/lib/client/api";
+import { x402Client } from "@x402/fetch";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import { toClientEvmSigner } from "@x402/evm";
+import { CHAIN_NAMES, CHAIN_TO_NETWORK } from "@/lib/client/api";
 
 type Status = { kind: "" | "ok" | "error"; text: string };
-
-type AcceptItem = {
-  scheme: string;
-  network: string;
-  payTo?: string;
-  to?: string;
-  price: any;
-};
-
-function findMatchingAccept(
-  accepts: AcceptItem | AcceptItem[] | undefined,
-  chainId: number | undefined
-): AcceptItem | null {
-  if (!chainId || !accepts) return null;
-  const net = CHAIN_TO_NETWORK[chainId];
-  if (!net) return null;
-  const arr = Array.isArray(accepts) ? accepts : [accepts];
-  return arr.find((a) => a.network === net) || null;
-}
-
-function parsePaymentRequired(res: Response) {
-  const h = res.headers.get("payment-required");
-  if (!h) return null;
-  try {
-    return JSON.parse(atob(h));
-  } catch {
-    return null;
-  }
-}
-
-function randomBytes32(): `0x${string}` {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return ("0x" +
-    Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")) as `0x${string}`;
-}
 
 export function PassForm({ onSuccess }: { onSuccess: () => void }) {
   const [handle, setHandle] = useState("");
@@ -58,9 +26,10 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { signTypedDataAsync } = useSignTypedData();
   const { openConnectModal } = useConnectModal();
   const { connectors, connectAsync } = useConnect();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
 
   async function ensureConnected() {
     if (isConnected && address) return true;
@@ -79,85 +48,6 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
     return false;
   }
 
-  async function buildPaymentSignature(
-    accept: AcceptItem,
-    payTo: `0x${string}`,
-    signerAddress: `0x${string}`
-  ) {
-    const cid = Number(accept.network.split(":")[1]);
-    const meta = USDC_META[cid];
-    if (!meta) throw new Error("unsupported chain: " + accept.network);
-
-    let amount: string;
-    if (typeof (accept as any).amount === "string") {
-      amount = String((accept as any).amount);
-    } else if (typeof accept.price === "object" && (accept.price as any)?.amount) {
-      amount = String((accept.price as any).amount);
-    } else if (typeof accept.price === "string") {
-      const n = parseFloat(accept.price.replace("$", ""));
-      amount = String(Math.round(n * 1_000_000));
-    } else {
-      throw new Error("cannot parse price");
-    }
-
-    const validAfter = "0";
-    const validBefore = String(Math.floor(Date.now() / 1000) + 900);
-    const nonce = randomBytes32();
-
-    const domain = {
-      name: meta.name,
-      version: meta.version,
-      chainId: cid,
-      verifyingContract: meta.address,
-    } as const;
-
-    const types = {
-      TransferWithAuthorization: [
-        { name: "from", type: "address" },
-        { name: "to", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" },
-        { name: "validBefore", type: "uint256" },
-        { name: "nonce", type: "bytes32" },
-      ],
-    } as const;
-
-    const message = {
-      from: signerAddress,
-      to: payTo,
-      value: BigInt(amount),
-      validAfter: BigInt(validAfter),
-      validBefore: BigInt(validBefore),
-      nonce,
-    };
-
-    setStatus({ kind: "", text: "waiting for wallet signature…" });
-    const signature = await signTypedDataAsync({
-      account: signerAddress,
-      domain,
-      types,
-      primaryType: "TransferWithAuthorization",
-      message,
-    });
-
-    const payload = {
-      x402Version: 2,
-      accepted: accept,
-      payload: {
-        signature,
-        authorization: {
-          from: signerAddress,
-          to: payTo,
-          value: amount,
-          validAfter,
-          validBefore,
-          nonce,
-        },
-      },
-    };
-    return btoa(JSON.stringify(payload));
-  }
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = handle.trim();
@@ -168,54 +58,102 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
     if (!isConnected || !address) {
       const ok = await ensureConnected();
       if (!ok) return;
-      // After modal connect, user has to click again.
       setStatus({ kind: "", text: "wallet connected. click pass again." });
+      return;
+    }
+    if (!walletClient) {
+      setStatus({ kind: "error", text: "wallet not ready, try again" });
       return;
     }
 
     setBusy(true);
     try {
-      let res = await fetch("/api/joint/pass", {
+      // Check if our chain is supported
+      const network = CHAIN_TO_NETWORK[chainId];
+      if (!network) {
+        throw new Error(
+          `wallet on ${CHAIN_NAMES[chainId] || chainId}, switch to Base or Abstract`
+        );
+      }
+
+      // Build x402 SDK client (same pattern as AFK explore page)
+      const readContractFn = publicClient
+        ? (args: any) => publicClient.readContract(args)
+        : undefined;
+
+      const signer = toClientEvmSigner({
+        address: address,
+        signTypedData: (msg: any) =>
+          walletClient.signTypedData({ ...msg, account: address }),
+        ...(readContractFn ? { readContract: readContractFn } : {}),
+      } as any, publicClient as any);
+
+      const client = new x402Client();
+      registerExactEvmScheme(client, { signer });
+
+      // First request to get 402 payment requirements
+      setStatus({ kind: "", text: "requesting payment details\u2026" });
+      const initialRes = await fetch("/api/joint/pass", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: trimmed }),
       });
 
-      if (res.status === 402) {
-        const payReq = parsePaymentRequired(res);
-        if (!payReq) throw new Error("no payment-required header");
-        const accept = findMatchingAccept(payReq.accepts, chainId);
-        if (!accept) {
-          const want = (Array.isArray(payReq.accepts) ? payReq.accepts : [payReq.accepts])
-            .map((a: AcceptItem) => a.network)
-            .join(", ");
-          throw new Error(
-            `wallet on ${CHAIN_NAMES[chainId!] || chainId}, server wants ${want}`
-          );
+      if (initialRes.status !== 402) {
+        // No payment needed (shouldn't happen but handle gracefully)
+        if (initialRes.ok) {
+          setStatus({ kind: "ok", text: `you're holding the joint. @${trimmed}` });
+          setHandle("");
+          onSuccess();
+        } else {
+          const text = await initialRes.text();
+          throw new Error(`server ${initialRes.status}: ${text.slice(0, 160)}`);
         }
-        const payTo = (accept.payTo || accept.to || payReq.payTo) as `0x${string}` | undefined;
-        if (!payTo) throw new Error("no payTo in accept");
-        if (payTo.toLowerCase() === address.toLowerCase()) {
-          throw new Error("cannot pay yourself. use a different wallet.");
-        }
-
-        const paymentHeader = await buildPaymentSignature(
-          accept,
-          payTo,
-          address as `0x${string}`
-        );
-
-        setStatus({ kind: "", text: "settling payment…" });
-
-        res = await fetch("/api/joint/pass", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "payment-signature": paymentHeader,
-          },
-          body: JSON.stringify({ handle: trimmed }),
-        });
+        return;
       }
+
+      // Parse payment requirements from 402 response
+      const paymentRequiredHeader = initialRes.headers.get("payment-required");
+      if (!paymentRequiredHeader) throw new Error("no payment-required header");
+      const paymentRequired = JSON.parse(atob(paymentRequiredHeader));
+
+      // Find matching accept for current chain
+      const accepts = Array.isArray(paymentRequired.accepts)
+        ? paymentRequired.accepts
+        : [paymentRequired.accepts];
+      const matchingAccept = accepts.find(
+        (a: any) => a.network === network
+      );
+      if (!matchingAccept) {
+        throw new Error(
+          `server wants ${accepts.map((a: any) => a.network).join(", ")}, wallet on ${network}`
+        );
+      }
+
+      // Use SDK to create payment payload
+      setStatus({ kind: "", text: "waiting for wallet signature\u2026" });
+
+      // Build the payment required object the SDK expects
+      const paymentRequiredForSdk = {
+        ...paymentRequired,
+        // Override accepts with just our matching chain
+        accepts: matchingAccept,
+      };
+      const paymentResult = await client.createPaymentPayload(paymentRequiredForSdk);
+
+      // Encode payment payload
+      const paymentHeader = btoa(JSON.stringify(paymentResult));
+
+      // Submit with payment
+      setStatus({ kind: "", text: "settling payment\u2026" });
+      const res = await fetch("/api/joint/pass", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "payment-signature": paymentHeader,
+        },
+        body: JSON.stringify({ handle: trimmed }),
+      });
 
       if (!res.ok) {
         const text = await res.text();
@@ -226,7 +164,14 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
       setHandle("");
       onSuccess();
     } catch (err: any) {
-      setStatus({ kind: "error", text: err?.message || String(err) });
+      const raw = err?.message || String(err);
+      // Clean up common wallet errors
+      const msg = raw.includes("User rejected")
+        ? "signature rejected"
+        : raw.includes("User denied")
+          ? "signature rejected"
+          : raw;
+      setStatus({ kind: "error", text: msg });
     } finally {
       setBusy(false);
     }
@@ -244,7 +189,7 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
         required
       />
       <button className="pass-btn" type="submit" disabled={busy}>
-        <span className="pass-main">{busy ? "signing…" : "pass it"}</span>
+        <span className="pass-main">{busy ? "signing\u2026" : "pass it"}</span>
         <span className="pass-tag">
           <span className="x402-chip">
             <span className="x">x</span>402
@@ -262,7 +207,7 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
         >
           <span style={{ color: "var(--text-mid)" }}>x</span>402
         </a>{" "}
-        · base · abstract
+        &middot; base &middot; abstract
       </span>
       <span className={"pass-status" + (status.kind ? " " + status.kind : "")}>
         {isConnected
