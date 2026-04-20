@@ -217,6 +217,7 @@ body {
   color: var(--text-mid);
   line-height: 1.55;
   max-width: 360px;
+  text-wrap: pretty;
 }
 
 .timer-block {
@@ -313,7 +314,8 @@ body {
   background: var(--kush-dim);
   color: #eafff0;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.08s;
+  transition-property: background, box-shadow, scale;
+  transition-duration: 0.15s, 0.15s, 0.1s;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -326,7 +328,7 @@ body {
   box-shadow: 0 8px 32px rgba(34, 197, 94, 0.28);
 }
 
-.pass-btn:active { transform: translateY(1px); }
+.pass-btn:active:not(:disabled) { scale: 0.96; }
 .pass-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .pass-btn .pass-main { letter-spacing: 0.01em; }
 .pass-btn .pass-tag {
@@ -452,6 +454,7 @@ body {
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-cell .l {
@@ -505,7 +508,18 @@ body {
   color: var(--text-mid);
   cursor: pointer;
   border-radius: 4px;
+  position: relative;
+  transition-property: color, background;
+  transition-duration: 0.15s;
 }
+
+.lb-toggle button::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+
+.lb-toggle button:active:not(.active) { scale: 0.96; }
 
 .lb-toggle button.active {
   background: var(--kush);
@@ -546,7 +560,7 @@ body {
   overflow: hidden;
   background: var(--surface-2);
   position: relative;
-  border: 1px solid var(--border);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 .lb-avatar img {
@@ -700,6 +714,7 @@ body {
   color: var(--text);
   margin-bottom: 28px;
   letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .how-steps {
@@ -742,6 +757,7 @@ body {
   font-size: 13.5px;
   color: var(--text-mid);
   line-height: 1.55;
+  text-wrap: pretty;
 }
 
 .how-step-body .p a {
