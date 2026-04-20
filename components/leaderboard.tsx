@@ -7,14 +7,28 @@ type Props = {
   items: LeaderboardItem[];
 };
 
+function formatDuration(ms: number): string {
+  if (ms < 1000) return "0s";
+  const totalSeconds = Math.floor(ms / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
+}
+
 export function Leaderboard({ items }: Props) {
-  const [mode, setMode] = useState<"score" | "passes">("score");
+  const [mode, setMode] = useState<"time" | "passes">("time");
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) =>
       mode === "passes"
         ? (b.totalPasses || 0) - (a.totalPasses || 0)
-        : (b.score || 0) - (a.score || 0)
+        : (b.timeHeldMs || 0) - (a.timeHeldMs || 0)
     );
   }, [items, mode]);
 
@@ -25,11 +39,11 @@ export function Leaderboard({ items }: Props) {
           <span className="lb-title">Leaderboard</span>
           <div className="lb-toggle">
             <button
-              className={mode === "score" ? "active" : ""}
-              onClick={() => setMode("score")}
+              className={mode === "time" ? "active" : ""}
+              onClick={() => setMode("time")}
               type="button"
             >
-              Score
+              Time
             </button>
             <button
               className={mode === "passes" ? "active" : ""}
@@ -38,7 +52,6 @@ export function Leaderboard({ items }: Props) {
             >
               Passes
             </button>
-
           </div>
         </div>
         <ul className="lb-list">
@@ -49,12 +62,12 @@ export function Leaderboard({ items }: Props) {
               const metric =
                 mode === "passes"
                   ? `${row.totalPasses || 0} passes`
-                  : `${row.score ?? 0} pts`;
+                  : formatDuration(row.timeHeldMs || 0);
               const secondary =
                 mode === "passes"
-                  ? `${row.score ?? 0} pts`
+                  ? formatDuration(row.timeHeldMs || 0)
                   : `${row.totalPasses || 0} passes`;
-              const rankLabel = i === 0 ? "★" : `#${i + 1}`;
+              const rankLabel = i === 0 ? "\u2605" : `#${i + 1}`;
               return (
                 <li
                   key={row.handle}

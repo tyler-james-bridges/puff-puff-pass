@@ -11,6 +11,7 @@ export type LeaderboardItem = {
   handle: string;
   totalPasses: number;
   score: number;
+  timeHeldMs?: number;
   currentStreak?: number;
   longestStreak?: number;
   rank?: number;

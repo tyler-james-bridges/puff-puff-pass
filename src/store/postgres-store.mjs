@@ -181,13 +181,38 @@ export class PostgresStore {
     }));
   }
 
+  async getTimeHeld() {
+    // Calculate total hold time per handle from pass history
+    const { rows } = await this.db.query(
+      `select handle, created_at from passes order by created_at asc`
+    );
+
+    const holdTimes = new Map(); // handle -> total ms held
+    const now = Date.now();
+
+    for (let i = 0; i < rows.length; i++) {
+      const holder = rows[i].handle;
+      const startTime = new Date(rows[i].created_at).getTime();
+      const endTime = i + 1 < rows.length
+        ? new Date(rows[i + 1].created_at).getTime()
+        : now; // current holder gets time until now
+
+      const duration = endTime - startTime;
+      holdTimes.set(holder, (holdTimes.get(holder) || 0) + duration);
+    }
+
+    return holdTimes;
+  }
+
   async getLeaderboard() {
     const { rows } = await this.db.query("select * from leaderboard_stats");
     const statsMap = mapStatsRows(rows);
     const ranked = buildRankedRows(statsMap);
+    const holdTimes = await this.getTimeHeld();
 
     return ranked.map((row) => ({
       ...row,
+      timeHeldMs: holdTimes.get(row.handle) || 0,
       badges: computeBadges({
         totalPasses: row.totalPasses,
         currentStreak: statsMap.get(row.handle)?.currentStreak ?? 0,

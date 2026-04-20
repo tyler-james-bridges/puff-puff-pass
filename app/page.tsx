@@ -6,10 +6,8 @@ import { AmbientSmoke } from "@/components/ambient-smoke";
 import { HolderCard } from "@/components/holder-card";
 import { PassForm } from "@/components/pass-form";
 import { Leaderboard } from "@/components/leaderboard";
-import { Ticker } from "@/components/ticker";
 import type {
   CurrentJoint,
-  FeedItem,
   LeaderboardItem,
 } from "@/lib/client/api";
 
@@ -46,7 +44,7 @@ function seededPick<T>(arr: T[], seed: string): T {
 export default function Home() {
   const [current, setCurrent] = useState<CurrentJoint | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
-  const [feed, setFeed] = useState<FeedItem[]>([]);
+
 
   const holder = current?.currentHolder || "nobody";
   const rig = seededPick(RIGS, holder + "-rig");
@@ -54,19 +52,14 @@ export default function Home() {
 
   const refresh = useCallback(async () => {
     try {
-      const [curRes, lbRes, feedRes] = await Promise.all([
+      const [curRes, lbRes] = await Promise.all([
         fetch("/api/joint/current"),
         fetch("/api/leaderboard"),
-        fetch("/api/feed?limit=10"),
       ]);
       if (curRes.ok) setCurrent(await curRes.json());
       if (lbRes.ok) {
         const data = await lbRes.json();
         setLeaderboard(data.items || []);
-      }
-      if (feedRes.ok) {
-        const data = await feedRes.json();
-        setFeed(data.items || []);
       }
     } catch {
       // silent
@@ -86,7 +79,6 @@ export default function Home() {
     <>
       <AmbientSmoke />
       <TopBar />
-      <Ticker items={feed} />
       <div className="wrap">
         <div className="hero">
           <div className="hero-left">
@@ -130,7 +122,7 @@ export default function Home() {
                 <span className="how-num">4</span>
                 <div className="how-step-body">
                   <div className="h">Climb the board</div>
-                  <div className="p">Score is based on passes, streaks, and hold time.</div>
+                  <div className="p">Ranked by hold time and total passes.</div>
                 </div>
               </div>
             </div>
