@@ -1034,6 +1034,19 @@ footer.site a:hover { color: var(--kush); }
 .footer-powered:hover {
   opacity: 1;
 }
+.footer-api {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.4;
+  color: var(--kush);
+  text-decoration: none;
+  font-family: var(--mono);
+  letter-spacing: 0.5px;
+}
+.footer-api:hover {
+  opacity: 1;
+}
 .footer-inspired {
   display: block;
   margin-top: 6px;

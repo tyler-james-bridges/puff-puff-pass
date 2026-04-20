@@ -140,6 +140,14 @@ export default function Home() {
               <span style={{ color: "var(--text-mid)" }}>x</span>402
             </a>
           </span>
+          <a
+            href="/.well-known/x402.json"
+            target="_blank"
+            rel="noopener"
+            className="footer-api"
+          >
+            for agents
+          </a>
           <span className="footer-inspired">
             inspired by{" "}
             <a
