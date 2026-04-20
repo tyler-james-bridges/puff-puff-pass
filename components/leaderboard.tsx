@@ -21,13 +21,19 @@ function formatDuration(ms: number): string {
   return `${seconds}s`;
 }
 
+function formatUsd(amount: number): string {
+  if (amount >= 1) return `$${amount.toFixed(2)}`;
+  if (amount >= 0.01) return `$${amount.toFixed(4)}`;
+  return `$${amount.toFixed(6)}`;
+}
+
 export function Leaderboard({ items }: Props) {
-  const [mode, setMode] = useState<"time" | "passes">("time");
+  const [mode, setMode] = useState<"time" | "spent">("time");
 
   const sorted = useMemo(() => {
     return [...items].sort((a, b) =>
-      mode === "passes"
-        ? (b.totalPasses || 0) - (a.totalPasses || 0)
+      mode === "spent"
+        ? (b.totalSpentUsd || 0) - (a.totalSpentUsd || 0)
         : (b.timeHeldMs || 0) - (a.timeHeldMs || 0)
     );
   }, [items, mode]);
@@ -46,11 +52,11 @@ export function Leaderboard({ items }: Props) {
               Time
             </button>
             <button
-              className={mode === "passes" ? "active" : ""}
-              onClick={() => setMode("passes")}
+              className={mode === "spent" ? "active" : ""}
+              onClick={() => setMode("spent")}
               type="button"
             >
-              Passes
+              Spent
             </button>
           </div>
         </div>
@@ -60,13 +66,13 @@ export function Leaderboard({ items }: Props) {
           ) : (
             sorted.slice(0, 10).map((row, i) => {
               const metric =
-                mode === "passes"
-                  ? `${row.totalPasses || 0} passes`
+                mode === "spent"
+                  ? formatUsd(row.totalSpentUsd || 0)
                   : formatDuration(row.timeHeldMs || 0);
               const secondary =
-                mode === "passes"
+                mode === "spent"
                   ? formatDuration(row.timeHeldMs || 0)
-                  : `${row.totalPasses || 0} passes`;
+                  : formatUsd(row.totalSpentUsd || 0);
               const rankLabel = i === 0 ? "\u2605" : `#${i + 1}`;
               return (
                 <li

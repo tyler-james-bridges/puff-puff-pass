@@ -204,15 +204,30 @@ export class PostgresStore {
     return holdTimes;
   }
 
+  async getTotalSpent() {
+    // Sum actual amount_usd per handle from passes table
+    const { rows } = await this.db.query(
+      `select handle, sum(amount_usd) as total_spent from passes group by handle`
+    );
+
+    const spentMap = new Map();
+    for (const row of rows) {
+      spentMap.set(row.handle, parseFloat(row.total_spent) || 0);
+    }
+    return spentMap;
+  }
+
   async getLeaderboard() {
     const { rows } = await this.db.query("select * from leaderboard_stats");
     const statsMap = mapStatsRows(rows);
     const ranked = buildRankedRows(statsMap);
     const holdTimes = await this.getTimeHeld();
+    const spentMap = await this.getTotalSpent();
 
     return ranked.map((row) => ({
       ...row,
       timeHeldMs: holdTimes.get(row.handle) || 0,
+      totalSpentUsd: spentMap.get(row.handle) || 0,
       badges: computeBadges({
         totalPasses: row.totalPasses,
         currentStreak: statsMap.get(row.handle)?.currentStreak ?? 0,
