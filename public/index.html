@@ -561,6 +561,12 @@ function renderWallet(){
 }
 async function connectWallet(){
   if (typeof window.ethereum === 'undefined'){
+    // On mobile, try opening in MetaMask's in-app browser
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = 'https://metamask.app.link/dapp/' + window.location.host + window.location.pathname;
+      return;
+    }
     setStatus('no wallet detected. install metamask or a compatible wallet.', 'error');
     return;
   }
@@ -587,7 +593,9 @@ function disconnectWallet(){
   }
   renderWallet();
 }
-walletChipEl.addEventListener('click', () => {
+walletChipEl.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
   if (walletAddress) disconnectWallet(); else connectWallet();
 });
 
