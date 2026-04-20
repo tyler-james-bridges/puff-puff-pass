@@ -126,10 +126,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Prevent tx replay — reject if this txHash was already used
+  const store = await getStore();
+  const existing = await store.db.query(
+    "select id from passes where tx_hash = $1 limit 1",
+    [txHash],
+  );
+  if (existing.rows.length > 0) {
+    return NextResponse.json(
+      { ok: false, error: "this transaction has already been used" },
+      { status: 409 },
+    );
+  }
+
   const message = typeof body.message === "string" ? body.message : null;
 
   try {
-    const store = await getStore();
     const passResult = await store.applyPass({
       handle,
       amountUsd: PASS_FEE_USD,
