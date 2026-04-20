@@ -1,27 +1,42 @@
 {
   "name": "puff-puff-pass",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "type": "module",
   "scripts": {
-    "start": "node src/server.mjs",
+    "dev": "next dev -p 4020",
+    "build": "next build",
+    "start": "next start -p 4020",
+    "start:legacy": "node src/server.mjs",
+    "lint": "next lint",
     "test": "node --test src/core/*.test.mjs src/store/*.test.mjs",
     "test:e2e:buyer": "node scripts/buyer-e2e.mjs",
     "verify:paid-pass": "node scripts/verify-paid-pass.mjs"
   },
   "dependencies": {
+    "@abstract-foundation/agw-client": "^1.10.0",
+    "@abstract-foundation/agw-react": "^1.10.0",
     "@coinbase/cdp-sdk": "^1.47.0",
     "@electric-sql/pglite": "^0.4.4",
+    "@rainbow-me/rainbowkit": "^2.2.10",
+    "@tanstack/react-query": "^5.85.5",
     "@x402/core": "^2.10.0",
     "@x402/evm": "^2.10.0",
     "@x402/express": "^2.10.0",
     "@x402/fetch": "^2.10.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "next": "^15.5.0",
     "pg": "^8.20.0",
-    "viem": "^2.47.18"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.47.18",
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
-    "pg-mem": "^3.0.14"
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "pg-mem": "^3.0.14",
+    "typescript": "^5.7.0"
   }
 }

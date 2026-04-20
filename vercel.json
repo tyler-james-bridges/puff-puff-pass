@@ -1,15 +1,4 @@
 {
-  "functions": {
-    "api/index.mjs": {
-      "includeFiles": "src/**"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/api/index.mjs"
-    }
-  ],
   "installCommand": "npm install",
-  "buildCommand": ""
+  "framework": "nextjs"
 }
