@@ -13,6 +13,7 @@ export type LeaderboardItem = {
   score: number;
   timeHeldMs?: number;
   totalSpentUsd?: number;
+  lastTxHash?: string | null;
   currentStreak?: number;
   longestStreak?: number;
   rank?: number;

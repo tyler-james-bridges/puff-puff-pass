@@ -610,6 +610,23 @@ body {
 
 .lb-row.is-first .lb-metric { color: var(--kush); }
 
+.lb-tx {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.lb-tx:hover {
+  opacity: 1;
+  color: var(--kush);
+  border-color: var(--kush-dim);
+}
+
 .lb-empty {
   padding: 22px 4px;
   text-align: center;
@@ -692,13 +709,13 @@ body {
 .feed-tx:hover { color: var(--kush); }
 
 .how-section {
-  padding: 56px 0 32px;
-  border-top: 1px solid var(--border);
-  margin-top: 8px;
+  padding: 32px 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-top: 32px;
   position: relative;
   z-index: 1;
-  background: rgba(5, 6, 5, 0.6);
-  backdrop-filter: blur(4px);
+  background: var(--surface);
 }
 
 .how-inner {
@@ -747,6 +764,7 @@ body {
 }
 
 .how-step-body .h {
+  font-family: var(--sans);
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
@@ -754,6 +772,7 @@ body {
 }
 
 .how-step-body .p {
+  font-family: var(--sans);
   font-size: 13.5px;
   color: var(--text-mid);
   line-height: 1.55;

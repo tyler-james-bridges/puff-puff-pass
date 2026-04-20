@@ -12,7 +12,7 @@ export function TopBar() {
         </span>
       </span>
       <nav className="topnav">
-        <span className="live">live</span>
+        <span className="live">high</span>
         <span className="wallet-slot">
           <ConnectButton
             accountStatus={{ smallScreen: "avatar", largeScreen: "address" }}

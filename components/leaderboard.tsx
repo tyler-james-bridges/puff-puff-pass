@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { avatarUrl, type LeaderboardItem } from "@/lib/client/api";
+import { avatarUrl, shortHash, type LeaderboardItem } from "@/lib/client/api";
 
 type Props = {
   items: LeaderboardItem[];
@@ -100,7 +100,20 @@ export function Leaderboard({ items }: Props) {
                     {row.handle}
                   </span>
                   <span className="lb-spent">{secondary}</span>
-                  <span className="lb-metric">{metric}</span>
+                  <span className="lb-metric">
+                    {metric}
+                    {row.lastTxHash && (
+                      <a
+                        className="lb-tx"
+                        href={`https://basescan.org/tx/${row.lastTxHash}`}
+                        target="_blank"
+                        rel="noopener"
+                        title={row.lastTxHash}
+                      >
+                        tx
+                      </a>
+                    )}
+                  </span>
                 </li>
               );
             })

@@ -217,17 +217,34 @@ export class PostgresStore {
     return spentMap;
   }
 
+  async getLastTxHash() {
+    // Get the most recent tx_hash per handle
+    const { rows } = await this.db.query(
+      `select distinct on (handle) handle, tx_hash
+       from passes
+       where tx_hash is not null and tx_hash != 'pending'
+       order by handle, created_at desc`
+    );
+    const map = new Map();
+    for (const row of rows) {
+      map.set(row.handle, row.tx_hash);
+    }
+    return map;
+  }
+
   async getLeaderboard() {
     const { rows } = await this.db.query("select * from leaderboard_stats");
     const statsMap = mapStatsRows(rows);
     const ranked = buildRankedRows(statsMap);
     const holdTimes = await this.getTimeHeld();
     const spentMap = await this.getTotalSpent();
+    const lastTxMap = await this.getLastTxHash();
 
     return ranked.map((row) => ({
       ...row,
       timeHeldMs: holdTimes.get(row.handle) || 0,
       totalSpentUsd: spentMap.get(row.handle) || 0,
+      lastTxHash: lastTxMap.get(row.handle) || null,
       badges: computeBadges({
         totalPasses: row.totalPasses,
         currentStreak: statsMap.get(row.handle)?.currentStreak ?? 0,
