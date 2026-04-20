@@ -41,12 +41,15 @@ async function verifyTransfer(
     const receipt = await client.getTransactionReceipt({ hash: txHash });
 
     if (receipt.status !== "success") {
+      console.log("[pass-direct] tx status:", receipt.status);
       return { verified: false, from: null, amount: 0n };
     }
 
     // Find USDC Transfer event to our receiver
     const payToLower = getAddress(PAY_TO).toLowerCase();
     const usdcLower = getAddress(cfg.usdc).toLowerCase();
+
+    console.log("[pass-direct] checking", receipt.logs.length, "logs for USDC transfer to", payToLower);
 
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== usdcLower) continue;
@@ -59,13 +62,17 @@ async function verifyTransfer(
       const fromAddr = "0x" + log.topics[1]!.slice(26);
       const value = BigInt(log.data);
 
+      console.log("[pass-direct] found transfer from", fromAddr, "value", value.toString());
+
       if (value >= BigInt(MIN_AMOUNT)) {
         return { verified: true, from: fromAddr, amount: value };
       }
     }
 
+    console.log("[pass-direct] no matching USDC transfer found in tx logs");
     return { verified: false, from: null, amount: 0n };
-  } catch {
+  } catch (err: any) {
+    console.error("[pass-direct] verify error:", err?.message || String(err));
     return { verified: false, from: null, amount: 0n };
   }
 }

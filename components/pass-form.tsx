@@ -6,7 +6,7 @@ import {
   useChainId,
   useConnect,
   useWriteContract,
-  useWaitForTransactionReceipt,
+  usePublicClient,
 } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { parseAbi } from "viem";
@@ -34,6 +34,7 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
   const { openConnectModal } = useConnectModal();
   const { connectors, connectAsync } = useConnect();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
   async function ensureConnected() {
     if (isConnected && address) return true;
@@ -108,13 +109,27 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
         gas: 100_000n,
       } as any);
 
-      // Wait for confirmation
-      setStatus({ kind: "", text: "waiting for confirmation\u2026" });
+      // Wait for the tx to be mined using the public client
+      setStatus({ kind: "", text: "waiting for tx confirmation\u2026" });
+      if (publicClient) {
+        try {
+          await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+            confirmations: 1,
+            timeout: 30_000,
+          });
+        } catch {
+          // Even if this times out, try server verification anyway
+        }
+      } else {
+        // Fallback: just wait a few seconds
+        await new Promise((r) => setTimeout(r, 4000));
+      }
 
-      // Poll for receipt
+      // Now verify with server
+      setStatus({ kind: "", text: "verifying payment\u2026" });
       let confirmed = false;
-      for (let i = 0; i < 30; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
+      for (let attempt = 0; attempt < 15; attempt++) {
         try {
           const res = await fetch("/api/joint/pass-direct", {
             method: "POST",
@@ -129,21 +144,28 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
             confirmed = true;
             break;
           }
-          const data = await res.json().catch(() => ({}));
-          // If verification fails, keep polling (tx might not be indexed yet)
+          // 402 = not verified yet, keep trying
+          // anything else = real error
           if (res.status !== 402) {
-            throw new Error(data.error || `server ${res.status}`);
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `server error ${res.status}`);
           }
         } catch (err: any) {
-          if (err.message && !err.message.includes("not verified")) {
+          // Only break out on non-verification errors
+          if (
+            err.message &&
+            !err.message.includes("not verified") &&
+            !err.message.includes("fetch")
+          ) {
             throw err;
           }
         }
+        await new Promise((r) => setTimeout(r, 2000));
       }
 
       if (!confirmed) {
         throw new Error(
-          "tx sent but verification timed out. it may still process."
+          "tx sent but verification timed out. refresh and check the leaderboard."
         );
       }
 
