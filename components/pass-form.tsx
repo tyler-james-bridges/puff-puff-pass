@@ -265,7 +265,9 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
         · base · abstract
       </span>
       <span className={"pass-status" + (status.kind ? " " + status.kind : "")}>
-        {isConnected ? status.text || "ready to pass." : "connect wallet to pass"}
+        {isConnected
+          ? (status.text === "connect wallet to pass" ? "ready to pass." : status.text || "ready to pass.")
+          : "connect wallet to pass"}
       </span>
     </form>
   );
