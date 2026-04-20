@@ -19,6 +19,9 @@ export const X402_NETWORKS = (
 export const PAY_TO =
   process.env.PAY_TO || "0x0000000000000000000000000000000000000000";
 
+export const ABSTRACT_PAY_TO =
+  process.env.ABSTRACT_PAY_TO || PAY_TO;
+
 export const ABSTRACT_USDC_ASSET =
   process.env.ABSTRACT_USDC_ASSET ||
   "0x84a71ccd554cc1b02749b35d22f684cc8ec987e1";

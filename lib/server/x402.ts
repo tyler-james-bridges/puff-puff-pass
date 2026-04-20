@@ -15,6 +15,7 @@ import {
   FACILITATOR_URL_ABSTRACT,
   PASS_FEE_USD,
   PAY_TO,
+  ABSTRACT_PAY_TO,
   X402_NETWORKS,
 } from "./config";
 import { NextRequest } from "next/server";
@@ -88,7 +89,7 @@ async function getX402Server(): Promise<x402HTTPResourceServer> {
           }
         : `$${PASS_FEE_USD}`,
       network,
-      payTo: PAY_TO,
+      payTo: isAbstract ? ABSTRACT_PAY_TO : PAY_TO,
     };
   });
 

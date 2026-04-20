@@ -4,6 +4,7 @@ import {
   FACILITATOR_URL_ABSTRACT,
   X402_NETWORKS,
   PAY_TO,
+  ABSTRACT_PAY_TO,
   PASS_FEE_USD,
 } from "@/lib/server/config";
 
@@ -18,6 +19,7 @@ export async function GET() {
       facilitatorUrlAbstract: FACILITATOR_URL_ABSTRACT,
       networks: X402_NETWORKS,
       payTo: PAY_TO,
+      abstractPayTo: ABSTRACT_PAY_TO,
       feeUsd: PASS_FEE_USD,
     },
   });

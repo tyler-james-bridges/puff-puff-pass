@@ -17,8 +17,8 @@ type Status = { kind: "" | "ok" | "error"; text: string };
 
 const PASS_FEE_USDC = 4020n; // 0.00402 USDC in 6-decimal units
 
-// Direct transfer only on Base (no Blockaid issues with AGW on Abstract)
-const DIRECT_TRANSFER_CHAINS = new Set([8453, 84532]);
+// Direct transfer on all supported chains
+const DIRECT_TRANSFER_CHAINS = new Set([8453, 84532, 2741, 11124]);
 
 const erc20Abi = parseAbi([
   "function transfer(address to, uint256 amount) returns (bool)",
@@ -79,15 +79,15 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
     const usdcMeta = USDC_META[chainId];
     if (!usdcMeta) throw new Error("unsupported chain for USDC");
 
-    let receiverAddr = payTo;
-    if (!receiverAddr) {
-      const healthRes = await fetch("/api/health");
-      if (!healthRes.ok) throw new Error("could not fetch payment info");
-      const health = await healthRes.json();
-      receiverAddr = health.x402?.payTo as `0x${string}`;
-      if (!receiverAddr) throw new Error("no receiver address configured");
-      setPayTo(receiverAddr);
-    }
+    // Fetch the right receiver for the current chain
+    const healthRes = await fetch("/api/health");
+    if (!healthRes.ok) throw new Error("could not fetch payment info");
+    const health = await healthRes.json();
+    const isAbstract = chainId === 2741 || chainId === 11124;
+    const receiverAddr = (isAbstract
+      ? health.x402?.abstractPayTo
+      : health.x402?.payTo) as `0x${string}`;
+    if (!receiverAddr) throw new Error("no receiver address configured");
 
     if (receiverAddr.toLowerCase() === address!.toLowerCase()) {
       throw new Error("cannot pay yourself. use a different wallet.");
@@ -99,7 +99,6 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
       abi: erc20Abi,
       functionName: "transfer",
       args: [receiverAddr, PASS_FEE_USDC],
-      gas: 100_000n,
     } as any);
 
     setStatus({ kind: "", text: "waiting for tx confirmation\u2026" });

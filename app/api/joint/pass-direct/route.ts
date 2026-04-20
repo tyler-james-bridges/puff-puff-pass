@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/server/store";
-import { PASS_FEE_USD, PAY_TO } from "@/lib/server/config";
+import { PASS_FEE_USD, PAY_TO, ABSTRACT_PAY_TO } from "@/lib/server/config";
 import { createPublicClient, http, parseAbi, getAddress } from "viem";
 import { base } from "viem/chains";
 
@@ -45,8 +45,9 @@ async function verifyTransfer(
       return { verified: false, from: null, amount: 0n };
     }
 
-    // Find USDC Transfer event to our receiver
-    const payToLower = getAddress(PAY_TO).toLowerCase();
+    // Find USDC Transfer event to our receiver (per-chain)
+    const receiverAddr = network === "eip155:2741" ? ABSTRACT_PAY_TO : PAY_TO;
+    const payToLower = getAddress(receiverAddr).toLowerCase();
     const usdcLower = getAddress(cfg.usdc).toLowerCase();
 
     console.log("[pass-direct] checking", receipt.logs.length, "logs for USDC transfer to", payToLower);
