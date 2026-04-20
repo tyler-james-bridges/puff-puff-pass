@@ -102,47 +102,42 @@ export default function Home() {
         <section className="how-section">
           <div className="how-inner">
             <div className="how-title">how to get on the leaderboard</div>
-            <ol className="how-list">
-              <li>
+            <div className="how-steps">
+              <div className="how-step">
                 <span className="how-num">1</span>
-                <div>
-                  <strong>Connect your wallet</strong>
-                  <p>Base or Abstract. You need a tiny bit of USDC.</p>
+                <div className="how-step-body">
+                  <div className="h">Connect your wallet</div>
+                  <div className="p">Base or Abstract. You need a tiny bit of USDC.</div>
                 </div>
-              </li>
-              <li>
+              </div>
+              <div className="how-step">
                 <span className="how-num">2</span>
-                <div>
-                  <strong>Enter your handle</strong>
-                  <p>This is your identity on the board.</p>
+                <div className="how-step-body">
+                  <div className="h">Enter your handle</div>
+                  <div className="p">This is your identity on the board.</div>
                 </div>
-              </li>
-              <li>
+              </div>
+              <div className="how-step">
                 <span className="how-num">3</span>
-                <div>
-                  <strong>Pass the joint</strong>
-                  <p>
+                <div className="how-step-body">
+                  <div className="h">Pass the joint</div>
+                  <div className="p">
                     $0.00402 per pass via{" "}
-                    <a
-                      href="https://x402.org"
-                      target="_blank"
-                      rel="noopener"
-                      className="x402-link"
-                    >
-                      <span style={{ color: "var(--text-mid)" }}>x</span>402
+                    <a href="https://x402.org" target="_blank" rel="noopener">
+                      x402
                     </a>
                     . Hold it as long as you can.
-                  </p>
+                  </div>
                 </div>
-              </li>
-              <li>
+              </div>
+              <div className="how-step">
                 <span className="how-num">4</span>
-                <div>
-                  <strong>Climb the board</strong>
-                  <p>Score is based on passes, streaks, and hold time.</p>
+                <div className="how-step-body">
+                  <div className="h">Climb the board</div>
+                  <div className="p">Score is based on passes, streaks, and hold time.</div>
                 </div>
-              </li>
-            </ol>
+              </div>
+            </div>
           </div>
         </section>
         <footer className="site-footer">
