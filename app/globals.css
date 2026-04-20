@@ -1016,3 +1016,11 @@ footer.site a:hover { color: var(--kush); }
 .footer-powered:hover {
   opacity: 1;
 }
+
+.lb-activity-line {
+  display: block;
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-top: 2px;
+  opacity: 0.8;
+}

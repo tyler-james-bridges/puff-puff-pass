@@ -6,11 +6,10 @@ import { AmbientSmoke } from "@/components/ambient-smoke";
 import { HolderCard } from "@/components/holder-card";
 import { PassForm } from "@/components/pass-form";
 import { Leaderboard } from "@/components/leaderboard";
-import { Feed } from "@/components/feed";
+// Feed is now integrated into the Leaderboard panel
 import type {
   CurrentJoint,
   FeedItem,
-  HealthInfo,
   LeaderboardItem,
 } from "@/lib/client/api";
 
@@ -48,7 +47,7 @@ export default function Home() {
   const [current, setCurrent] = useState<CurrentJoint | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [health, setHealth] = useState<HealthInfo | null>(null);
+
   const holder = current?.currentHolder || "nobody";
   const rig = seededPick(RIGS, holder + "-rig");
   const strain = seededPick(STRAINS, holder + "-strain");
@@ -76,15 +75,12 @@ export default function Home() {
 
   useEffect(() => {
     refresh();
-    fetch("/api/health")
-      .then((r) => r.json())
-      .then(setHealth)
-      .catch(() => {});
+
     const id = setInterval(refresh, 8000);
     return () => clearInterval(id);
   }, [refresh]);
 
-  const network = health?.x402?.networks?.[0] || null;
+
 
   return (
     <>
@@ -96,9 +92,8 @@ export default function Home() {
             <HolderCard current={current} rig={rig} strain={strain} />
             <PassForm onSuccess={refresh} />
           </div>
-          <Leaderboard items={leaderboard} />
+          <Leaderboard items={leaderboard} feed={feed} />
         </div>
-        <Feed items={feed} network={network} />
         <section className="how-section">
           <div className="how-inner">
             <div className="how-title">how to get on the leaderboard</div>
