@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description:
     "x402-gated virtual joint passing game. Grab the joint, pass it on, climb the leaderboard.",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/icon.svg",
   },
   openGraph: {
     title: "Puff Puff Pass",
@@ -26,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

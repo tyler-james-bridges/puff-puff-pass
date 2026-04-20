@@ -6,7 +6,6 @@ export function TopBar() {
   return (
     <header className="topbar">
       <span className="brand">
-        <span className="mark"></span>
         <span>
           <span className="bracket">[</span>puff.puff.pass
           <span className="bracket">]</span>
