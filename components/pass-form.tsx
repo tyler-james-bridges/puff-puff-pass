@@ -105,8 +105,7 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
         abi: erc20Abi,
         functionName: "transfer",
         args: [receiverAddr, PASS_FEE_USDC],
-        account: address,
-        chain: undefined as any,
+        gas: 100_000n,
       } as any);
 
       // Wait for confirmation
