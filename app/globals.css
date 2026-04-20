@@ -1002,3 +1002,17 @@ footer.site a:hover { color: var(--kush); }
   .topnav .live, .topnav a { display: none; }
   .topnav { gap: 0; }
 }
+
+/* footer */
+.site-footer {
+  text-align: center;
+  padding: 24px 0 32px;
+  color: var(--text-mid, #888);
+  font-size: 13px;
+}
+.footer-powered {
+  opacity: 0.6;
+}
+.footer-powered:hover {
+  opacity: 1;
+}

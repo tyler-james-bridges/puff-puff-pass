@@ -146,30 +146,17 @@ export default function Home() {
           </div>
         </section>
         <footer className="site-footer">
-          <a
-            href="https://x402.org"
-            target="_blank"
-            rel="noopener"
-            className="x402-link"
-          >
-            <span style={{ color: "var(--text-mid)" }}>x</span>402
-          </a>
-          <span className="sep">|</span>
-          <a
-            href="/openapi.json"
-            target="_blank"
-            rel="noopener"
-          >
-            api
-          </a>
-          <span className="sep">|</span>
-          <a
-            href="https://github.com/tyler-james-bridges/puff-puff-pass"
-            target="_blank"
-            rel="noopener"
-          >
-            github
-          </a>
+          <span className="footer-powered">
+            powered by{" "}
+            <a
+              href="https://x402.org"
+              target="_blank"
+              rel="noopener"
+              className="x402-link"
+            >
+              <span style={{ color: "var(--text-mid)" }}>x</span>402
+            </a>
+          </span>
         </footer>
       </div>
     </>
