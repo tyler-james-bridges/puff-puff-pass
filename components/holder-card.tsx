@@ -3,6 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import { avatarUrl, pad, type CurrentJoint } from "@/lib/client/api";
 
+type XProfile = {
+  name: string;
+  handle: string;
+  bio: string;
+  followers: number;
+  following: number;
+  posts: number;
+};
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
 type Props = {
   current: CurrentJoint | null;
   rig: string;
@@ -18,10 +33,20 @@ export function HolderCard({ current, rig, strain, emberId = "rig-ember" }: Prop
 
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
+  const [xProfile, setXProfile] = useState<XProfile | null>(null);
 
   useEffect(() => {
     setImgLoaded(false);
     setImgFailed(false);
+    setXProfile(null);
+
+    if (!handle) return;
+    fetch(`/api/x-profile/${encodeURIComponent(handle)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.ok && data.profile) setXProfile(data.profile);
+      })
+      .catch(() => {});
   }, [handle]);
 
   const sinceMs = current?.currentSince
@@ -74,21 +99,41 @@ export function HolderCard({ current, rig, strain, emberId = "rig-ember" }: Prop
       </div>
 
       <p className="holder-bio">
-        {message ||
+        {xProfile?.bio ||
+          message ||
           (handle
             ? "currently holding the joint."
             : "no one is holding the joint yet. be the first.")}
       </p>
 
       <div className="holder-stats">
-        <div className="stat-cell">
-          <span className="v">{passes}</span>
-          <span className="l">total passes</span>
-        </div>
-        <div className="stat-cell">
-          <span className="v">${fee}</span>
-          <span className="l">pass fee</span>
-        </div>
+        {xProfile ? (
+          <>
+            <div className="stat-cell">
+              <span className="v">{formatCount(xProfile.followers)}</span>
+              <span className="l">followers</span>
+            </div>
+            <div className="stat-cell">
+              <span className="v">{formatCount(xProfile.following)}</span>
+              <span className="l">following</span>
+            </div>
+            <div className="stat-cell">
+              <span className="v">{formatCount(xProfile.posts)}</span>
+              <span className="l">posts</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stat-cell">
+              <span className="v">{passes}</span>
+              <span className="l">total passes</span>
+            </div>
+            <div className="stat-cell">
+              <span className="v">${fee}</span>
+              <span className="l">pass fee</span>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="timer-block">
