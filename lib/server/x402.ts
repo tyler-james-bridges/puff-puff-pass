@@ -198,26 +198,26 @@ export function withPayPass(
         }
       );
 
-      if (settlement.success && settlement.transaction) {
+      const txHash = settlement.transaction || (settlement as any).txHash || (settlement as any).transactionHash;
+      if (settlement.success && txHash) {
         try {
           const body = await req.clone().json();
           const handle = body?.handle;
           if (handle) {
             const store = await getStore();
-            await store.backfillLatestPendingTxHash(
-              handle,
-              settlement.transaction
-            );
+            await store.backfillLatestPendingTxHash(handle, txHash);
           }
-        } catch {
-          // silent
+        } catch (e: any) {
+          console.error("[x402] backfill error:", e?.message || String(e));
         }
-
-        const paymentResponse = Buffer.from(
-          JSON.stringify(settlement)
-        ).toString("base64");
-        response.headers.set("Payment-Response", paymentResponse);
+      } else {
+        console.warn("[x402] no tx in settlement:", JSON.stringify(settlement).slice(0, 500));
       }
+
+      const paymentResponse = Buffer.from(
+        JSON.stringify(settlement)
+      ).toString("base64");
+      response.headers.set("Payment-Response", paymentResponse);
     } catch (settleErr: any) {
       console.error(
         "[x402] settle error:",

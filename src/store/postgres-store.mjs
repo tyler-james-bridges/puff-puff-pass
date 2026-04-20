@@ -123,19 +123,21 @@ export class PostgresStore {
 
   async getCurrent() {
     const { rows } = await this.db.query(
-      "select current_handle, total_passes from holder_state where id = 1"
+      "select current_handle, total_passes, updated_at from holder_state where id = 1"
     );
 
     if (!rows.length) {
       return {
         currentHolder: null,
-        totalPasses: 0
+        totalPasses: 0,
+        currentSince: null
       };
     }
 
     return {
       currentHolder: rows[0].current_handle,
-      totalPasses: toNumber(rows[0].total_passes)
+      totalPasses: toNumber(rows[0].total_passes),
+      currentSince: toIso(rows[0].updated_at)
     };
   }
 
