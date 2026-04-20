@@ -7,6 +7,14 @@ type Props = {
   network: string | null;
 };
 
+function stripRank(line: string): string {
+  return line
+    .replace(/\s+(at|to|and (claimed|landed at|entered))\s+#\d+/gi, "")
+    .replace(/,?\s*now (sitting )?at #\d+/gi, "")
+    .replace(/\s+#\d+$/g, "")
+    .trim();
+}
+
 export function Feed({ items, network }: Props) {
   return (
     <section className="feed-section">
@@ -39,7 +47,7 @@ export function Feed({ items, network }: Props) {
                       <span className="at">@</span>{item.handle}
                     </div>
                     <div className="feed-detail">
-                      {item.gainLine || item.status || "pass logged"}
+                      {stripRank(item.gainLine || item.status || "pass logged")}
                     </div>
                   </div>
                   <div className="feed-right">
