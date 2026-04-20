@@ -662,6 +662,7 @@ passFormEl.addEventListener('submit', async (ev) => {
       if (!accept) throw new Error(`wallet on ${CHAIN_NAMES[walletChainId] || walletChainId}, server wants ${(payReq.accepts||[]).map(a=>a.network).join(', ')}`);
       const payTo = accept.payTo || accept.to || payReq.payTo;
       if (!payTo) throw new Error('no payTo in accept');
+      if (payTo.toLowerCase() === walletAddress.toLowerCase()) throw new Error('cannot pay yourself. use a different wallet.');
 
       const paymentHeader = await buildPaymentSignature(accept, payTo, walletSigner, walletAddress);
       setStatus('settling payment…');
