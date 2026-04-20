@@ -5,16 +5,20 @@ import {
   useAccount,
   useChainId,
   useConnect,
-  useWalletClient,
-  usePublicClient,
+  useWriteContract,
+  useWaitForTransactionReceipt,
 } from "wagmi";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { x402Client } from "@x402/fetch";
-import { registerExactEvmScheme } from "@x402/evm/exact/client";
-import { toClientEvmSigner } from "@x402/evm";
-import { CHAIN_NAMES, CHAIN_TO_NETWORK } from "@/lib/client/api";
+import { parseAbi } from "viem";
+import { CHAIN_NAMES, CHAIN_TO_NETWORK, USDC_META } from "@/lib/client/api";
 
 type Status = { kind: "" | "ok" | "error"; text: string };
+
+const PASS_FEE_USDC = 4020n; // 0.00402 USDC in 6-decimal units
+
+const erc20Abi = parseAbi([
+  "function transfer(address to, uint256 amount) returns (bool)",
+]);
 
 export function PassForm({ onSuccess }: { onSuccess: () => void }) {
   const [handle, setHandle] = useState("");
@@ -23,13 +27,13 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
     text: "connect wallet to pass",
   });
   const [busy, setBusy] = useState(false);
+  const [payTo, setPayTo] = useState<`0x${string}` | null>(null);
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const { openConnectModal } = useConnectModal();
   const { connectors, connectAsync } = useConnect();
-  const { data: walletClient } = useWalletClient();
-  const publicClient = usePublicClient();
+  const { writeContractAsync } = useWriteContract();
 
   async function ensureConnected() {
     if (isConnected && address) return true;
@@ -61,116 +65,104 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
       setStatus({ kind: "", text: "wallet connected. click pass again." });
       return;
     }
-    if (!walletClient) {
-      setStatus({ kind: "error", text: "wallet not ready, try again" });
+
+    const network = CHAIN_TO_NETWORK[chainId];
+    if (!network) {
+      setStatus({
+        kind: "error",
+        text: `switch to ${Object.values(CHAIN_NAMES).join(" or ")}`,
+      });
+      return;
+    }
+
+    const usdcMeta = USDC_META[chainId];
+    if (!usdcMeta) {
+      setStatus({ kind: "error", text: "unsupported chain for USDC" });
       return;
     }
 
     setBusy(true);
     try {
-      // Check if our chain is supported
-      const network = CHAIN_TO_NETWORK[chainId];
-      if (!network) {
-        throw new Error(
-          `wallet on ${CHAIN_NAMES[chainId] || chainId}, switch to Base or Abstract`
-        );
+      // Fetch the receiver address from health endpoint
+      let receiverAddr = payTo;
+      if (!receiverAddr) {
+        const healthRes = await fetch("/api/health");
+        if (!healthRes.ok) throw new Error("could not fetch payment info");
+        const health = await healthRes.json();
+        receiverAddr = health.x402?.payTo as `0x${string}`;
+        if (!receiverAddr) throw new Error("no receiver address configured");
+        setPayTo(receiverAddr);
       }
 
-      // Build x402 SDK client (same pattern as AFK explore page)
-      const readContractFn = publicClient
-        ? (args: any) => publicClient.readContract(args)
-        : undefined;
+      if (receiverAddr.toLowerCase() === address.toLowerCase()) {
+        throw new Error("cannot pay yourself. use a different wallet.");
+      }
 
-      const signer = toClientEvmSigner({
-        address: address,
-        signTypedData: (msg: any) =>
-          walletClient.signTypedData({ ...msg, account: address }),
-        ...(readContractFn ? { readContract: readContractFn } : {}),
-      } as any, publicClient as any);
+      // Send direct USDC transfer
+      setStatus({ kind: "", text: "confirm USDC transfer in wallet\u2026" });
+      const txHash = await writeContractAsync({
+        address: usdcMeta.address,
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [receiverAddr, PASS_FEE_USDC],
+        account: address,
+        chain: undefined as any,
+      } as any);
 
-      const client = new x402Client();
-      registerExactEvmScheme(client, { signer });
+      // Wait for confirmation
+      setStatus({ kind: "", text: "waiting for confirmation\u2026" });
 
-      // First request to get 402 payment requirements
-      setStatus({ kind: "", text: "requesting payment details\u2026" });
-      const initialRes = await fetch("/api/joint/pass", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ handle: trimmed }),
-      });
-
-      if (initialRes.status !== 402) {
-        // No payment needed (shouldn't happen but handle gracefully)
-        if (initialRes.ok) {
-          setStatus({ kind: "ok", text: `you're holding the joint. @${trimmed}` });
-          setHandle("");
-          onSuccess();
-        } else {
-          const text = await initialRes.text();
-          throw new Error(`server ${initialRes.status}: ${text.slice(0, 160)}`);
+      // Poll for receipt
+      let confirmed = false;
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          const res = await fetch("/api/joint/pass-direct", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              handle: trimmed,
+              txHash,
+              network,
+            }),
+          });
+          if (res.ok) {
+            confirmed = true;
+            break;
+          }
+          const data = await res.json().catch(() => ({}));
+          // If verification fails, keep polling (tx might not be indexed yet)
+          if (res.status !== 402) {
+            throw new Error(data.error || `server ${res.status}`);
+          }
+        } catch (err: any) {
+          if (err.message && !err.message.includes("not verified")) {
+            throw err;
+          }
         }
-        return;
       }
 
-      // Parse payment requirements from 402 response
-      const paymentRequiredHeader = initialRes.headers.get("payment-required");
-      if (!paymentRequiredHeader) throw new Error("no payment-required header");
-      const paymentRequired = JSON.parse(atob(paymentRequiredHeader));
-
-      // Find matching accept for current chain
-      const accepts = Array.isArray(paymentRequired.accepts)
-        ? paymentRequired.accepts
-        : [paymentRequired.accepts];
-      const matchingAccept = accepts.find(
-        (a: any) => a.network === network
-      );
-      if (!matchingAccept) {
+      if (!confirmed) {
         throw new Error(
-          `server wants ${accepts.map((a: any) => a.network).join(", ")}, wallet on ${network}`
+          "tx sent but verification timed out. it may still process."
         );
       }
 
-      // Use SDK to create payment payload
-      setStatus({ kind: "", text: "waiting for wallet signature\u2026" });
-
-      // Build the payment required object the SDK expects
-      const paymentRequiredForSdk = {
-        ...paymentRequired,
-        // Override accepts with just our matching chain
-        accepts: matchingAccept,
-      };
-      const paymentResult = await client.createPaymentPayload(paymentRequiredForSdk);
-
-      // Encode payment payload
-      const paymentHeader = btoa(JSON.stringify(paymentResult));
-
-      // Submit with payment
-      setStatus({ kind: "", text: "settling payment\u2026" });
-      const res = await fetch("/api/joint/pass", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "payment-signature": paymentHeader,
-        },
-        body: JSON.stringify({ handle: trimmed }),
+      setStatus({
+        kind: "ok",
+        text: `you're holding the joint. @${trimmed}`,
       });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`server ${res.status}: ${text.slice(0, 160)}`);
-      }
-
-      setStatus({ kind: "ok", text: `you're holding the joint. @${trimmed}` });
       setHandle("");
       onSuccess();
     } catch (err: any) {
       const raw = err?.message || String(err);
-      // Clean up common wallet errors
-      const msg = raw.includes("User rejected")
-        ? "signature rejected"
-        : raw.includes("User denied")
-          ? "signature rejected"
-          : raw;
+      const msg = raw.includes("User rejected") || raw.includes("User denied")
+        ? "transaction rejected"
+        : raw.includes("insufficient")
+          ? "insufficient USDC balance"
+          : raw.length > 120
+            ? raw.slice(0, 120) + "\u2026"
+            : raw;
       setStatus({ kind: "error", text: msg });
     } finally {
       setBusy(false);
@@ -189,7 +181,7 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
         required
       />
       <button className="pass-btn" type="submit" disabled={busy}>
-        <span className="pass-main">{busy ? "signing\u2026" : "pass it"}</span>
+        <span className="pass-main">{busy ? "sending\u2026" : "pass it"}</span>
         <span className="pass-tag">
           <span className="x402-chip">
             <span className="x">x</span>402
@@ -211,7 +203,9 @@ export function PassForm({ onSuccess }: { onSuccess: () => void }) {
       </span>
       <span className={"pass-status" + (status.kind ? " " + status.kind : "")}>
         {isConnected
-          ? (status.text === "connect wallet to pass" ? "ready to pass." : status.text || "ready to pass.")
+          ? status.text === "connect wallet to pass"
+            ? "ready to pass."
+            : status.text || "ready to pass."
           : "connect wallet to pass"}
       </span>
     </form>
