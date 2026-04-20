@@ -140,6 +140,16 @@ export default function Home() {
               <span style={{ color: "var(--text-mid)" }}>x</span>402
             </a>
           </span>
+          <span className="footer-inspired">
+            inspired by{" "}
+            <a
+              href="https://stablespotlight.dev"
+              target="_blank"
+              rel="noopener"
+            >
+              stablespotlight.dev
+            </a>
+          </span>
         </footer>
       </div>
     </>

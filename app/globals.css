@@ -1034,6 +1034,20 @@ footer.site a:hover { color: var(--kush); }
 .footer-powered:hover {
   opacity: 1;
 }
+.footer-inspired {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.4;
+}
+.footer-inspired a {
+  color: var(--text-mid);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--text-faint);
+}
+.footer-inspired a:hover {
+  color: var(--text);
+}
 
 .lb-activity-line {
   display: block;
