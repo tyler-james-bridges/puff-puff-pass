@@ -6,7 +6,7 @@ import { AmbientSmoke } from "@/components/ambient-smoke";
 import { HolderCard } from "@/components/holder-card";
 import { PassForm } from "@/components/pass-form";
 import { Leaderboard } from "@/components/leaderboard";
-// Feed is now integrated into the Leaderboard panel
+import { Ticker } from "@/components/ticker";
 import type {
   CurrentJoint,
   FeedItem,
@@ -86,13 +86,14 @@ export default function Home() {
     <>
       <AmbientSmoke />
       <TopBar />
+      <Ticker items={feed} />
       <div className="wrap">
         <div className="hero">
           <div className="hero-left">
             <HolderCard current={current} rig={rig} strain={strain} />
             <PassForm onSuccess={refresh} />
           </div>
-          <Leaderboard items={leaderboard} feed={feed} />
+          <Leaderboard items={leaderboard} />
         </div>
         <section className="how-section">
           <div className="how-inner">
