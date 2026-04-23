@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/server/store";
 import { PASS_FEE_USD, PAY_TO, ABSTRACT_PAY_TO } from "@/lib/server/config";
-import { createPublicClient, http, parseAbi, getAddress } from "viem";
+import { createPublicClient, http, getAddress } from "viem";
 import { base } from "viem/chains";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const USDC_ABSTRACT = "0x84a71ccd554cc1b02749b35d22f684cc8ec987e1";
 const MIN_AMOUNT = Math.round(Number(PASS_FEE_USD) * 1_000_000); // in USDC units (6 decimals)
-
-const erc20TransferEvent = parseAbi([
-  "event Transfer(address indexed from, address indexed to, uint256 value)",
-]);
 
 const RPC_MAP: Record<string, { rpc: string; usdc: string; chain: any }> = {
   "eip155:8453": {
