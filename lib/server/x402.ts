@@ -4,6 +4,11 @@ import {
   HTTPFacilitatorClient,
 } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
+import {
+  BUILDER_CODE,
+  builderCodeResourceServerExtension,
+  declareBuilderCodeExtension,
+} from "@x402/extensions/builder-code";
 import { createCdpAuthHeadersFactory } from "../../src/x402/cdp-auth.mjs";
 import {
   ABSTRACT_USDC_ASSET,
@@ -24,6 +29,7 @@ import { getStore } from "./store";
 
 let _httpServer: x402HTTPResourceServer | null = null;
 let _initPromise: Promise<void> | null = null;
+const BASE_BUILDER_CODE = "bc_jhxtiha3";
 
 async function getX402Server(): Promise<x402HTTPResourceServer> {
   if (_httpServer) return _httpServer;
@@ -70,7 +76,8 @@ async function getX402Server(): Promise<x402HTTPResourceServer> {
   // Build ResourceServer with facilitators + schemes
   const resourceServer = new x402ResourceServer(facilitatorClients)
     .register("eip155:*" as any, exactEvmScheme)
-    .register("eip155:2741" as any, exactEvmScheme);
+    .register("eip155:2741" as any, exactEvmScheme)
+    .registerExtension(builderCodeResourceServerExtension);
 
   const microUsd = String(Math.round(Number(PASS_FEE_USD) * 1_000_000));
   const accepts = X402_NETWORKS.map((network) => {
@@ -99,6 +106,9 @@ async function getX402Server(): Promise<x402HTTPResourceServer> {
       description:
         "Pay to pass the virtual joint and claim the live holder slot.",
       mimeType: "application/json",
+      extensions: {
+        [BUILDER_CODE]: declareBuilderCodeExtension(BASE_BUILDER_CODE),
+      },
     },
   };
 
