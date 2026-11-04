@@ -55,10 +55,10 @@ test("PostgresStore applyPass updates holder, feed, and leaderboard", async () =
   assert.equal(third.event.displacedHandle, "alpha");
 
   const current = await store.getCurrent();
-  assert.deepEqual(current, {
-    currentHolder: "bravo",
-    totalPasses: 3
-  });
+  assert.equal(current.currentHolder, "bravo");
+  assert.equal(current.totalPasses, 3);
+  assert.equal(typeof current.currentSince, "string");
+  assert.equal(Number.isNaN(Date.parse(current.currentSince)), false);
 
   const leaderboard = await store.getLeaderboard();
   assert.equal(leaderboard.length, 2);
